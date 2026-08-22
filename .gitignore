@@ -32,6 +32,13 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Agent tooling (restored via `npx skills install` from skills-lock.json)
+.agents/
+.claude/
+
+# Session context notes — local only, never commit
+context.md
+
 # Logs
 *.log
 npm-debug.log*
