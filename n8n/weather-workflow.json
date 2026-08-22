@@ -1,0 +1,110 @@
+{
+  "name": "Sprout Weather Notifications",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger (demo)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 480]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "latitude", "value": "45.52" },
+            { "name": "longitude", "value": "-122.68" },
+            { "name": "daily", "value": "temperature_2m_min,precipitation_sum" },
+            { "name": "forecast_days", "value": "2" },
+            { "name": "timezone", "value": "auto" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-weather",
+      "name": "Fetch Weather (Open-Meteo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide whether a watering or frost notification is needed.\n// Replace USER_ID / GARDEN_ID with the demo user's ids, or map them dynamically.\nconst USER_ID = $env.SPROUT_DEMO_USER_ID || 'REPLACE_WITH_USER_ID';\nconst GARDEN_ID = $env.SPROUT_DEMO_GARDEN_ID || null;\n\nlet notification = null;\n\ntry {\n  const daily = $input.first().json.daily || {};\n  const minTemp = (daily.temperature_2m_min || [])[0];\n  const rain = (daily.precipitation_sum || [])[0];\n\n  if (typeof minTemp === 'number' && minTemp <= 2) {\n    notification = {\n      type: 'frost_warning',\n      title: 'Frost expected tonight',\n      message: `Low of ${minTemp}\\u00b0C forecast. Cover tender crops or bring pots inside.`,\n    };\n  } else if (typeof rain === 'number' && rain < 1) {\n    notification = {\n      type: 'watering_reminder',\n      title: 'Water your garden',\n      message: 'Little rain expected in the next day. Give thirsty crops a deep watering.',\n    };\n  }\n} catch (e) {\n  // fall through to no-notification\n}\n\nif (!notification) return [];\nreturn [{ json: { user_id: USER_ID, garden_id: GARDEN_ID, ...notification } }];"
+      },
+      "id": "decide",
+      "name": "Decide Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Hard-coded frost warning so the demo notification always appears on cue.\nconst USER_ID = $env.SPROUT_DEMO_USER_ID || 'REPLACE_WITH_USER_ID';\nconst GARDEN_ID = $env.SPROUT_DEMO_GARDEN_ID || null;\nreturn [{ json: {\n  user_id: USER_ID,\n  garden_id: GARDEN_ID,\n  type: 'frost_warning',\n  title: 'Frost expected tonight',\n  message: 'A cold night is forecast. Cover tender crops or bring pots inside.',\n} }];"
+      },
+      "id": "demo-frost",
+      "name": "Demo Frost (manual)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 560]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SPROUT_BACKEND_URL || 'http://localhost:8000' }}/api/webhooks/n8n/weather-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-N8N-Secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "post-notification",
+      "name": "POST Notification to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 440]
+    }
+  ],
+  "connections": {
+    "Every 30 min": {
+      "main": [[{ "node": "Fetch Weather (Open-Meteo)", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger (demo)": {
+      "main": [[{ "node": "Demo Frost (manual)", "type": "main", "index": 0 }]]
+    },
+    "Fetch Weather (Open-Meteo)": {
+      "main": [[{ "node": "Decide Action", "type": "main", "index": 0 }]]
+    },
+    "Decide Action": {
+      "main": [[{ "node": "POST Notification to Backend", "type": "main", "index": 0 }]]
+    },
+    "Demo Frost (manual)": {
+      "main": [[{ "node": "POST Notification to Backend", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false,
+  "pinData": {},
+  "meta": {
+    "description": "Fetches Open-Meteo weather and posts a watering/frost notification to the Sprout backend webhook. Includes a manual-trigger demo branch that always fires a frost warning. Set N8N_WEBHOOK_SECRET, SPROUT_BACKEND_URL, SPROUT_DEMO_USER_ID (and optionally SPROUT_DEMO_GARDEN_ID) as n8n environment variables."
+  }
+}
