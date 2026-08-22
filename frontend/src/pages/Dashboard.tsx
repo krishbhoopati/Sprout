@@ -9,6 +9,29 @@ export function Dashboard() {
   const [gardens, setGardens] = useState<Garden[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Two-step delete: first click arms the confirm, second click deletes.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (gardenId: string) => {
+    if (confirmingId !== gardenId) {
+      setConfirmingId(gardenId);
+      return;
+    }
+    setDeletingId(gardenId);
+    setError(null);
+    try {
+      await gardensApi.remove(gardenId);
+      setGardens((prev) => prev.filter((g) => g.id !== gardenId));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not delete the garden."
+      );
+    } finally {
+      setDeletingId(null);
+      setConfirmingId(null);
+    }
+  };
 
   useEffect(() => {
     gardensApi
@@ -63,12 +86,30 @@ export function Dashboard() {
                     {g.city ?? "—"} · {g.width_m}m × {g.length_m}m ·{" "}
                     {g.sunlight_level.replace("_", " ")}
                   </p>
-                  <Link
-                    to={`/gardens/${g.id}/crops`}
-                    className="btn-secondary mt-4"
-                  >
-                    Plan crops
-                  </Link>
+                  <div className="mt-4 flex items-center justify-between gap-2">
+                    <Link to={`/gardens/${g.id}/crops`} className="btn-secondary">
+                      Plan crops
+                    </Link>
+                    <button
+                      type="button"
+                      className={
+                        confirmingId === g.id
+                          ? "btn bg-red-600 text-white hover:bg-red-700"
+                          : "btn border border-slate-200 text-slate-500 hover:border-red-300 hover:text-red-600"
+                      }
+                      onClick={() => handleDelete(g.id)}
+                      onBlur={() =>
+                        setConfirmingId((id) => (id === g.id ? null : id))
+                      }
+                      disabled={deletingId === g.id}
+                    >
+                      {deletingId === g.id
+                        ? "Deleting…"
+                        : confirmingId === g.id
+                          ? "Really delete?"
+                          : "Delete"}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

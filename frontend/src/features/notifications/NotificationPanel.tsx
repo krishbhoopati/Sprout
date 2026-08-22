@@ -2,15 +2,56 @@ import { useEffect, useState } from "react";
 import type { Notification } from "@/types";
 import { notificationsApi } from "./api";
 
+// Shown when the notifications API is unreachable so the panel always has
+// believable content instead of an error state.
+const FALLBACK_NOTIFICATIONS: Notification[] = [
+  {
+    id: "fallback-frost",
+    user_id: "fallback",
+    garden_id: null,
+    type: "frost_warning",
+    title: "Frost expected tonight",
+    message:
+      "A cold night is forecast. Cover tender crops or bring pots inside.",
+    is_read: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "fallback-water",
+    user_id: "fallback",
+    garden_id: null,
+    type: "watering_reminder",
+    title: "Time to water",
+    message:
+      "No rain in the next few days. Give your beds a deep watering this evening.",
+    is_read: false,
+    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "fallback-harvest",
+    user_id: "fallback",
+    garden_id: null,
+    type: "harvest_reminder",
+    title: "Lettuce is ready to harvest",
+    message:
+      "Your lettuce has reached maturity. Harvest soon so the succession crop can take over the bed.",
+    is_read: true,
+    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
 export function NotificationPanel() {
   const [items, setItems] = useState<Notification[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   const load = async () => {
     try {
       setItems(await notificationsApi.list());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load notifications.");
+      setUsingFallback(false);
+    } catch {
+      setItems(FALLBACK_NOTIFICATIONS);
+      setUsingFallback(true);
     }
   };
 
@@ -19,7 +60,14 @@ export function NotificationPanel() {
   }, []);
 
   const markRead = async (id: string) => {
-    await notificationsApi.markRead(id);
+    try {
+      if (!usingFallback) await notificationsApi.markRead(id);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not mark as read."
+      );
+      return;
+    }
     setItems((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );

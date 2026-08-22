@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
 from ..auth import CurrentUser
 from ..errors import not_found, validation_error
@@ -74,6 +74,16 @@ async def update_garden(
         .execute()
     )
     return Garden(**res.data[0])
+
+
+@router.delete("/{garden_id}", status_code=204)
+async def delete_garden(garden_id: str, user_id: CurrentUser) -> Response:
+    """Delete a garden. Plans, obstacles, preferences, and world generations
+    cascade at the database level; notifications keep their history."""
+    _fetch_owned_garden(garden_id, user_id)
+    sb = get_supabase()
+    sb.table("gardens").delete().eq("id", garden_id).eq("user_id", user_id).execute()
+    return Response(status_code=204)
 
 
 @router.post("/{garden_id}/obstacles")

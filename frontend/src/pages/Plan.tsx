@@ -7,7 +7,6 @@ import { TimelineSlider } from "@/features/plans/TimelineSlider";
 import { colorForCrop } from "@/features/plans/colors";
 import { isVisibleOn, removalDate, seasonBounds, formatDate } from "@/features/plans/dates";
 import { WorldPreview } from "@/features/world/WorldPreview";
-import { buildDemoWorldUrl } from "@/features/world/demoWorld";
 import type { PlanResponse } from "@/types";
 
 export function Plan() {
@@ -54,12 +53,6 @@ export function Plan() {
     }
     return { rows: r, cols: c };
   }, [data]);
-
-  // A personalized 3D demo world reflecting this garden's grid + crops.
-  const demoWorldUrl = useMemo(
-    () => buildDemoWorldUrl(cols, rows, data?.assignments ?? []),
-    [cols, rows, data]
-  );
 
   // Distinct crop names, sent to World Labs so the generated world features
   // the vegetables in this plan.
@@ -203,11 +196,7 @@ export function Plan() {
             </div>
 
             {plan.garden_id && (
-              <WorldPreview
-                gardenId={plan.garden_id}
-                demoWorldUrl={demoWorldUrl}
-                cropNames={cropNames}
-              />
+              <WorldPreview gardenId={plan.garden_id} cropNames={cropNames} />
             )}
 
             {unplaced && unplaced.length > 0 && (
