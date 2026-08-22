@@ -7,6 +7,7 @@ import { TimelineSlider } from "@/features/plans/TimelineSlider";
 import { colorForCrop } from "@/features/plans/colors";
 import { isVisibleOn, removalDate, seasonBounds, formatDate } from "@/features/plans/dates";
 import { SAMPLE_PLAN } from "@/features/plans/samplePlan";
+import { WorldPreview } from "@/features/world/WorldPreview";
 import type { PlanResponse } from "@/types";
 
 export function Plan() {
@@ -181,6 +182,10 @@ export function Plan() {
                 </ul>
               )}
             </div>
+
+            {plan.garden_id && plan.garden_id !== "sample" && (
+              <WorldPreview gardenId={plan.garden_id} />
+            )}
 
             {unplaced && unplaced.length > 0 && (
               <div className="card border-amber-200 bg-amber-50">
