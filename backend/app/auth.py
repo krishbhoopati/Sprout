@@ -9,6 +9,10 @@ from .errors import unauthorized
 # Cached JWKS client for asymmetric (RS256/ES256) Supabase tokens.
 _jwks_client: jwt.PyJWKClient | None = None
 
+# Freshly minted Supabase tokens can carry an iat a few seconds ahead of this
+# machine's clock; without leeway they are rejected as "not yet valid".
+_CLOCK_SKEW_LEEWAY_SECONDS = 30
+
 
 def _get_jwks_client() -> jwt.PyJWKClient | None:
     global _jwks_client
@@ -26,6 +30,7 @@ def _decode_token(token: str) -> dict:
     secret if that is how the project signs tokens.
     """
     # Try asymmetric verification via JWKS first.
+    jwks_error: jwt.PyJWTError | None = None
     jwks = _get_jwks_client()
     if jwks is not None:
         try:
@@ -35,10 +40,11 @@ def _decode_token(token: str) -> dict:
                 signing_key.key,
                 algorithms=["RS256", "ES256"],
                 audience="authenticated",
+                leeway=_CLOCK_SKEW_LEEWAY_SECONDS,
                 options={"verify_aud": False},
             )
-        except jwt.PyJWTError:
-            pass  # fall through to HS256
+        except jwt.PyJWTError as exc:
+            jwks_error = exc  # fall through to HS256
 
     # Fall back to the legacy HS256 shared secret.
     if settings.supabase_jwt_secret:
@@ -48,11 +54,14 @@ def _decode_token(token: str) -> dict:
                 settings.supabase_jwt_secret,
                 algorithms=["HS256"],
                 audience="authenticated",
+                leeway=_CLOCK_SKEW_LEEWAY_SECONDS,
                 options={"verify_aud": False},
             )
         except jwt.PyJWTError as exc:
             raise unauthorized(f"Invalid token: {exc}") from exc
 
+    if jwks_error is not None:
+        raise unauthorized(f"Invalid token: {jwks_error}") from jwks_error
     raise unauthorized("Token verification is not configured on the server")
 
 

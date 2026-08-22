@@ -65,7 +65,9 @@ export function Wizard() {
         if (uploadError) {
           console.warn("[sprout] image upload failed:", uploadError.message);
         } else {
-          await gardensApi.update(garden.id, {}).catch(() => {});
+          // Persist the storage path so the backend can hand the photo to
+          // World Labs when generating the 3D preview.
+          await gardensApi.update(garden.id, { image_path: path }).catch(() => {});
         }
       }
 

@@ -141,4 +141,5 @@ export interface WorldGenerationStatus {
   status: WorldStatus;
   result_url?: string;
   error_message?: string;
+  world_id?: string;
 }

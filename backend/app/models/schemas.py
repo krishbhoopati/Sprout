@@ -150,6 +150,12 @@ class WeatherResponse(BaseModel):
 
 
 # ---- World Labs ----
+class WorldStartRequest(BaseModel):
+    # Crop names from the plan, used to steer the World Labs prompt so the
+    # generated world features the vegetables the user actually planned.
+    crops: list[str] = []
+
+
 class WorldStartResponse(BaseModel):
     operation_id: str
     status: WorldStatus
@@ -159,6 +165,21 @@ class WorldStatusResponse(BaseModel):
     status: WorldStatus
     result_url: Optional[str] = None
     error_message: Optional[str] = None
+    # Present for real Marble worlds; the frontend uses it to render the
+    # in-app panorama and build the "Open in Marble" link.
+    world_id: Optional[str] = None
+
+
+class WorldAssetsResponse(BaseModel):
+    world_id: str
+    # Direct CDN URL of the Gaussian-splat scene the in-app viewer renders
+    # (the CDN allows cross-origin GETs, so no proxying is needed).
+    splat_url: Optional[str] = None
+    # All available splat quality levels, keyed by name (e.g. "100k", "500k").
+    spz_urls: dict[str, str] = {}
+    # Marble semantics metadata for rendering at real-world scale.
+    metric_scale_factor: Optional[float] = None
+    ground_plane_offset: Optional[float] = None
 
 
 # ---- Notifications (webhook) ----

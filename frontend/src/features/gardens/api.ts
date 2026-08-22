@@ -15,8 +15,10 @@ export const gardensApi = {
   list: () => api.get<Garden[]>("/api/gardens"),
   get: (gardenId: string) => api.get<Garden>(`/api/gardens/${gardenId}`),
   create: (input: CreateGardenInput) => api.post<Garden>("/api/gardens", input),
-  update: (gardenId: string, input: Partial<CreateGardenInput>) =>
-    api.patch<Garden>(`/api/gardens/${gardenId}`, input),
+  update: (
+    gardenId: string,
+    input: Partial<CreateGardenInput> & { image_path?: string | null }
+  ) => api.patch<Garden>(`/api/gardens/${gardenId}`, input),
   setObstacles: (gardenId: string, obstacles: GardenObstacle[]) =>
     api.post<{ obstacles: GardenObstacle[] }>(
       `/api/gardens/${gardenId}/obstacles`,

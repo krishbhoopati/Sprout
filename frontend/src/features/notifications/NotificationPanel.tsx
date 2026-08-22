@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Notification } from "@/types";
 import { notificationsApi } from "./api";
-import { isSupabaseConfigured } from "@/lib/supabase";
 
 export function NotificationPanel() {
   const [items, setItems] = useState<Notification[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
-    if (!isSupabaseConfigured) return;
     try {
       setItems(await notificationsApi.list());
     } catch (err) {

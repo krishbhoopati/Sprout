@@ -10,15 +10,18 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@sparkjsdev/spark": "^2.1.0",
     "@supabase/supabase-js": "^2.45.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.2"
+    "react-router-dom": "^6.26.2",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.160.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",

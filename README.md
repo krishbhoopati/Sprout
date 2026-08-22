@@ -14,6 +14,9 @@ n8n/        weather notification workflow
 render.yaml two-service Render deploy (static site + web service)
 ```
 
+Both `frontend/` and `backend/` read their config from a local `.env`
+(gitignored; see the `.env.example` in each for the variable names).
+
 ## Backend — quick start
 
 ```bash
@@ -21,32 +24,18 @@ cd backend
 python -m venv .venv
 # Windows: .venv\Scripts\activate  |  macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env      # fill in your Supabase values
 uvicorn app.main:app --reload   # http://localhost:8000/docs
 pytest                          # optimizer + estimates + webhook tests
 ```
 
 Mock flags (`MOCK_WEATHER`, `MOCK_WORLD_LABS`) default to `true`, so those
-integrations work with no external keys. See `supabase/README.md` to provision
-the database, seed crops, and enable RLS.
+integrations work with no external keys. See `supabase/README.md` for the
+database migrations, crop seed, and RLS setup.
 
 ## Frontend — quick start
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env      # fill in your Supabase + API values
-npm run dev
+npm run dev    # http://localhost:5173
 ```
-
-The dev server runs on http://localhost:5173.
-
-### Environment
-
-Copy `frontend/.env.example` to `frontend/.env` and set:
-
-- `VITE_SUPABASE_URL` — Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase publishable/anon key (safe in browser with RLS on)
-- `VITE_API_BASE_URL` — FastAPI backend base URL (e.g. `http://localhost:8000`)
-
-The app runs without a configured backend; API-dependent screens show empty/placeholder states.

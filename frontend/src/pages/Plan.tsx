@@ -6,14 +6,14 @@ import { GardenGrid } from "@/features/plans/GardenGrid";
 import { TimelineSlider } from "@/features/plans/TimelineSlider";
 import { colorForCrop } from "@/features/plans/colors";
 import { isVisibleOn, removalDate, seasonBounds, formatDate } from "@/features/plans/dates";
-import { SAMPLE_PLAN } from "@/features/plans/samplePlan";
 import { WorldPreview } from "@/features/world/WorldPreview";
+import { buildDemoWorldUrl } from "@/features/world/demoWorld";
 import type { PlanResponse } from "@/types";
 
 export function Plan() {
   const { planId = "" } = useParams();
   const [data, setData] = useState<PlanResponse | null>(null);
-  const [usingSample, setUsingSample] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
 
   useEffect(() => {
@@ -24,11 +24,11 @@ export function Plan() {
         if (!active) return;
         setData(res);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!active) return;
-        // Backend unavailable — fall back to the demo plan so the UI still works.
-        setData(SAMPLE_PLAN);
-        setUsingSample(true);
+        setError(
+          err instanceof Error ? err.message : "Could not load this plan."
+        );
       });
     return () => {
       active = false;
@@ -55,6 +55,32 @@ export function Plan() {
     return { rows: r, cols: c };
   }, [data]);
 
+  // A personalized 3D demo world reflecting this garden's grid + crops.
+  const demoWorldUrl = useMemo(
+    () => buildDemoWorldUrl(cols, rows, data?.assignments ?? []),
+    [cols, rows, data]
+  );
+
+  // Distinct crop names, sent to World Labs so the generated world features
+  // the vegetables in this plan.
+  const cropNames = useMemo(
+    () => [...new Set((data?.assignments ?? []).map((a) => a.crop))],
+    [data]
+  );
+
+  if (error) {
+    return (
+      <div className="min-h-screen">
+        <AppHeader />
+        <main className="mx-auto max-w-6xl px-4 py-8">
+          <div className="card border-red-200 bg-red-50 text-sm text-red-700">
+            Could not load this plan: {error}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!data || !bounds || !selectedDate) {
     return (
       <div className="min-h-screen">
@@ -76,13 +102,6 @@ export function Plan() {
     <div className="min-h-screen">
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        {usingSample && (
-          <div className="card mb-4 border-amber-200 bg-amber-50 text-sm text-amber-800">
-            Showing a sample plan (backend not reachable). Wire up the API to see
-            your real generated plan.
-          </div>
-        )}
-
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <h1 className="mb-3 text-2xl font-bold text-slate-900">
@@ -183,8 +202,12 @@ export function Plan() {
               )}
             </div>
 
-            {plan.garden_id && plan.garden_id !== "sample" && (
-              <WorldPreview gardenId={plan.garden_id} />
+            {plan.garden_id && (
+              <WorldPreview
+                gardenId={plan.garden_id}
+                demoWorldUrl={demoWorldUrl}
+                cropNames={cropNames}
+              />
             )}
 
             {unplaced && unplaced.length > 0 && (

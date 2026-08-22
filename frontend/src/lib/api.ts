@@ -70,6 +70,25 @@ export async function apiFetch<T>(
   return (await res.json()) as T;
 }
 
+/**
+ * Authenticated GET that returns the raw response body as a Blob (e.g. images
+ * proxied by the backend). Throws ApiRequestError on non-2xx.
+ */
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const auth = await authHeader();
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: { ...auth },
+  });
+  if (!res.ok) {
+    throw new ApiRequestError(res.status, {
+      code: "unknown",
+      message: `Request failed with status ${res.status}`,
+    });
+  }
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path, { method: "GET" }),
   post: <T>(path: string, body?: unknown) =>

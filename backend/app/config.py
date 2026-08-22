@@ -30,9 +30,11 @@ class Settings(BaseSettings):
     supabase_jwks_url: str = ""
     supabase_jwt_secret: str = ""
 
-    # World Labs
+    # World Labs (Marble World API)
     world_labs_api_key: str = ""
     world_labs_base_url: str = "https://api.worldlabs.ai"
+    # marble-1.0 | marble-1.1 | marble-1.1-plus (larger/pricier).
+    world_labs_model: str = "marble-1.1"
 
     # Weather
     open_meteo_base_url: str = "https://api.open-meteo.com"
