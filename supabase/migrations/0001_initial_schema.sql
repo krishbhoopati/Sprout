@@ -12,8 +12,14 @@ create table if not exists public.profiles (
 );
 
 -- Create a profile row automatically on new user signup.
+-- search_path is pinned empty (schema-qualify everything) and EXECUTE is revoked
+-- so this SECURITY DEFINER function is not callable via the REST RPC surface.
 create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
   insert into public.profiles (id, display_name)
   values (
@@ -23,6 +29,8 @@ begin
   return new;
 end;
 $$;
+
+revoke execute on function public.handle_new_user() from anon, authenticated, public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created

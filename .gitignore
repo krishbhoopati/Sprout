@@ -36,6 +36,9 @@ Thumbs.db
 .agents/
 .claude/
 
+# Session context notes — local only, never commit
+context.md
+
 # Logs
 *.log
 npm-debug.log*
