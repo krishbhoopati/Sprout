@@ -4,11 +4,40 @@ A hackathon build plan for **Sprout**, an app that turns a yard, balcony, raised
 
 This document is written to be executed directly by coding agents and a four-person team. It favors demo reliability and integration speed over production infrastructure.
 
+> **Status (built & deployed).** The core flow is live on Render — frontend
+> https://sprout-1-qckn.onrender.com, backend https://sprout-ldna.onrender.com.
+> Some decisions changed during the build; the most important divergences from
+> the original plan are called out in **§0. What changed since planning** below,
+> and the affected sections have been updated in place.
+
+---
+
+## 0. What changed since planning
+
+- **World Labs is real, not a fallback.** The 3D preview now generates an actual
+  Marble world from the garden photo + planned crops and renders the returned
+  Gaussian-splat scene in-app with [Spark](https://sparkjs.dev/) (three.js). The
+  previously planned checked-in "demo world" was removed entirely — there is no
+  fallback world; a failed generation shows an error with a retry and an
+  "open in Marble" link. `MOCK_WORLD_LABS=false` is the real path and the default
+  for deployment. See §18.
+- **The app fails fast on missing config** instead of running against placeholders.
+  The frontend throws at startup without `VITE_SUPABASE_*`; the plan page shows a
+  real error instead of a hard-coded sample plan.
+- **Garden deletion** shipped: `DELETE /api/gardens/{id}` plus a two-step confirm
+  on the dashboard.
+- **Notification fallback**: the panel shows a few built-in notifications when the
+  notifications API is unreachable, so it is never blank/broken.
+- **Plan grid** shows the space each plan occupies with a dashed cell overlay and
+  each crop block labelled with its real-world size.
+- **UI**: a hero-image landing page, pill buttons and the garden hero carried into
+  the auth pages, and a dashboard "impact summary" section.
+
 ---
 
 ## 1. Executive Summary
 
-Sprout takes a garden's dimensions, sunlight level, and a list of vegetables the user eats, then produces an optimized season-long planting plan. The plan reuses each garden section over time (succession planting): lettuce in the spring bed gets replaced by beans in summer. The plan renders on a grid with a timeline slider, so moving from June to July visibly swaps one crop for its successor. Sprout also estimates seasonal yield and grocery savings as ranges, shows a 3D preview of the garden via World Labs (with a prepared fallback), and fires one n8n weather workflow that writes a watering or frost notification back into the app.
+Sprout takes a garden's dimensions, sunlight level, and a list of vegetables the user eats, then produces an optimized season-long planting plan. The plan reuses each garden section over time (succession planting): lettuce in the spring bed gets replaced by beans in summer. The plan renders on a grid with a timeline slider, so moving from June to July visibly swaps one crop for its successor. Sprout also estimates seasonal yield and grocery savings as ranges, generates a real 3D preview of the garden via the World Labs Marble API (rendered in-app as a Gaussian-splat scene), and fires one n8n weather workflow that writes a watering or frost notification back into the app.
 
 The build is one React/Vite frontend, one FastAPI backend, Supabase for auth/database/storage, one n8n workflow, and World Labs for the 3D preview. No microservices, no Redis, no separate auth system. The optimizer is a two-stage heuristic that runs inside a single API request.
 
@@ -32,9 +61,9 @@ If you are reading this inside a repo that already has code, stop and reconcile:
 
 ## 3. Hackathon Scope
 
-**In scope (P0):** Supabase email/password auth, garden creation with dimensions and sunlight, curated crop dataset, crop selection, the space-and-time optimizer with succession planting, the grid + timeline plan view, yield and savings estimates, one n8n weather workflow, World Labs preview or a convincing fallback, and Render deployment of both services.
+**In scope (P0):** Supabase email/password auth, garden creation with dimensions and sunlight, curated crop dataset, crop selection, the space-and-time optimizer with succession planting, the grid + timeline plan view, yield and savings estimates, one n8n weather workflow, a real World Labs Marble 3D preview, and Render deployment of both services.
 
-**Valuable if time allows (P1):** obstacle placement, real World Labs generation (vs. fallback), multiple saved gardens, richer placement explanations, notification history, mobile polish.
+**Valuable if time allows (P1):** obstacle placement, multiple saved gardens, richer placement explanations, notification history, mobile polish. *(Real World Labs generation and garden delete shipped.)*
 
 **Mock or demo-only (P2):** marketplace feed, create-listing, companion-plant visual explanations.
 
@@ -56,7 +85,7 @@ See Section 25 for the ordered checklist that turns this into work.
 8. The plan page renders the grid, a legend, and a timeline slider.
 9. User drags the timeline. Crops appear on their plant dates and disappear on their removal dates. Successor crops take over vacated cells.
 10. User reads the estimated yield range and grocery-savings range, plus a per-placement explanation.
-11. User opens the 3D preview. The frontend polls status until the World Labs world is ready, or shows the prepared demo world.
+11. User opens the 3D preview. The backend generates a Marble world from the garden photo and planned crops; the frontend polls status and renders the returned Gaussian-splat world in-app, with a link out to the full hosted world. A failed generation shows an error with a retry.
 12. In the background, the n8n weather workflow runs, decides an action is needed, and posts a notification. It shows up in the dashboard notification panel.
 
 ---
@@ -77,7 +106,7 @@ flowchart TD
     FE -->|Supabase JS: auth, direct reads via RLS| SB
     FE -->|REST: generate plan, weather, world status| BE
     BE -->|Supabase client secret key| SB
-    BE -->|image signed URL| WL
+    BE -->|upload photo as media asset| WL
     BE -->|fetch forecast| OM
     N8N -->|read weather, decide action| OM
     N8N -->|POST notification w/ shared secret| BE
@@ -104,7 +133,7 @@ Key decisions baked into this diagram:
 | Plan generation / optimization | FastAPI `services/optimizer.py` | Two-stage heuristic, one request |
 | Yield & savings math | FastAPI `services/estimates.py` | Transparent formulas, ranges only |
 | Weather fetch | FastAPI `services/weather.py` + Open-Meteo | Mockable via `MOCK_WEATHER` |
-| 3D preview | World Labs via `services/world_labs.py` | Mockable via `MOCK_WORLD_LABS` |
+| 3D preview | World Labs Marble via `services/world_labs.py`; rendered in-app with Spark/three.js | Real generation; `MOCK_WORLD_LABS` skips it (no demo world) |
 | Scheduled reminders | n8n | One polished weather workflow |
 | Hosting | Render | Static site + web service only |
 
@@ -283,7 +312,7 @@ One bucket: **`garden-images`** (private).
 
 - Authenticated users upload to a path prefixed with their user ID: `user-id/garden-id/original.jpg`.
 - Storage RLS: a user can read/write objects whose path starts with their own `auth.uid()`. This keeps each user's originals private.
-- The backend, using the secret key, creates a short-lived **signed URL** when World Labs needs to fetch the image.
+- For a 3D preview, the backend downloads the stored photo (secret key) and uploads it to World Labs Marble as a media asset — the image bytes go to Marble directly, not via a public URL.
 - Validate before upload: allowed types `image/jpeg`, `image/png`, `image/webp`; max size 10 MB. Do the check on the client for UX and again on the backend for anything server-mediated.
 
 Storage policy sketch:
@@ -315,6 +344,7 @@ Common codes: `unauthorized` (401), `forbidden` (403), `not_found` (404), `valid
 - **`GET /api/gardens`**: list the user's gardens. Response: `[garden]`.
 - **`GET /api/gardens/{garden_id}`**: one garden. 404 if not owned/found.
 - **`PATCH /api/gardens/{garden_id}`**: update fields. Body: partial garden. 403 if not owner.
+- **`DELETE /api/gardens/{garden_id}`**: delete a garden (owner-checked). 204 on success; related plans, obstacles, and world generations cascade at the DB level.
 - **`POST /api/gardens/{garden_id}/obstacles`**: replace obstacle set. Body: `{ obstacles: [{x,y,width_cells,height_cells}] }`.
 
 ### Crops
@@ -334,10 +364,12 @@ Common codes: `unauthorized` (401), `forbidden` (403), `not_found` (404), `valid
 - **`POST /api/webhooks/n8n/weather-notification`**: n8n calls this to create a notification.
   Auth: shared secret header `X-N8N-Secret` matching `N8N_WEBHOOK_SECRET` (not a user token). Body: `{ user_id, garden_id, type, title, message }`. Rejects with 401 on bad/missing secret.
 
-### World Labs
+### World Labs (Marble)
 
-- **`POST /api/gardens/{garden_id}/world`**: start generation. Backend signs the stored image URL, calls World Labs (or mock), stores a `world_generations` row with `operation_id`, returns `{ operation_id, status }`.
-- **`GET /api/gardens/{garden_id}/world/status`**: poll. Returns `{ status, result_url?, error_message? }`. `status` in `pending | processing | ready | failed`.
+- **`POST /api/gardens/{garden_id}/world`**: start generation. Backend downloads the stored garden photo, uploads it to Marble as a media asset, starts a generation with an image + text prompt built from the plan's crops, stores a `world_generations` row with `operation_id`, returns `{ operation_id, status }`.
+- **`GET /api/gardens/{garden_id}/world/status`**: poll. Returns `{ status, result_url?, error_message?, world_id? }`. `status` in `pending | processing | ready | failed`.
+- **`GET /api/gardens/{garden_id}/world/assets`**: for a ready world, returns the splat scene URL(s), panorama URL, and scale metadata the in-app viewer needs.
+- **`GET /api/gardens/{garden_id}/world/pano`**: same-origin proxy of the world's equirectangular panorama (avoids CORS for the WebGL texture), used as a fallback view.
 
 ### Marketplace (P2 only)
 
@@ -551,15 +583,15 @@ Example plan-level line for the demo:
 
 **Required:**
 
-1. **Landing**: one-screen pitch, Get Started button.
-2. **Sign-up**: email/password, calls `signUp`, redirects to dashboard.
+1. **Landing**: full-bleed garden hero, pitch, Get Started button.
+2. **Sign-up**: email/password over the garden hero, calls `signUp`, redirects to dashboard.
 3. **Login**: email/password, calls `signInWithPassword`.
-4. **Dashboard**: list of gardens, a Create Garden button, and the notification panel.
+4. **Dashboard**: greeting + impact summary, list of gardens (each with a two-step delete), a Create Garden button, and the notification panel.
 5. **Create-garden wizard**: steps: basics (name, city) → dimensions (width, length, sunlight) → photo upload. Writes garden + uploads image.
 6. **Crop-selection**: grid of crop cards from `GET /api/crops`; toggle select, mark must-have.
 7. **Planting-plan**: the main screen (Section 17).
-8. **3D preview**: embedded in the plan page or its own tab; polls world status, shows result or fallback world.
-9. **Notification panel**: list, unread badges, mark-read.
+8. **3D preview**: embedded in the plan page; polls world status, renders the generated Marble splat world in-app (panorama fallback, error + retry).
+9. **Notification panel**: list, unread badges, mark-read; falls back to built-in notifications if the API is unreachable.
 
 **Optional (P2):** 10. Marketplace feed. 11. Create-listing.
 
@@ -573,7 +605,7 @@ The plan page is the demo. Build it to be legible from the back of a room.
 
 Layout:
 
-- **Grid**: a `rows x cols` CSS grid. Each assignment renders as a colored block at its `x/y` spanning `width_cells x height_cells`, labeled with the crop name or icon.
+- **Grid**: a `rows x cols` CSS grid sized to the plan's occupied cells. A dashed cell overlay divides it, and each assignment renders as a colored block at its `x/y` spanning `width_cells x height_cells`, labeled with the crop name and its real-world size (cells × 30 cm).
 - **Legend**: crop color/icon key.
 - **Timeline slider**: ranges over the season (earliest plant date to latest harvest end). The label shows the selected date.
 - **Active-crop filter**: an assignment is visible only when `plant_date <= selected_date <= removal_date`. This one predicate drives the whole animation.
@@ -591,17 +623,37 @@ Acceptance: dragging the slider from early June to mid-July makes the lettuce bl
 
 ## 18. World Labs Integration
 
-World Labs produces an explorable 3D garden from the uploaded image. It is not a measurement tool. Keep it non-blocking and always have a fallback.
+The World Labs **Marble** API produces an explorable 3D garden from the uploaded
+image (guided by the planned crops). It is not a measurement tool. Keep it
+non-blocking; generation takes several minutes.
 
 Flow:
 
 1. User has already uploaded a garden image to Storage during the wizard.
 2. Frontend calls `POST /api/gardens/{id}/world`.
-3. Backend creates a signed URL for the image, sends it to World Labs, gets an `operation_id`, stores a `world_generations` row (`status = processing`), returns the id.
-4. Frontend polls `GET /api/gardens/{id}/world/status` every few seconds.
-5. On `ready`, embed/display `result_url`. On `failed` or timeout, show the prepared demo world.
+3. Backend downloads the image, uploads it to Marble as a media asset, starts a
+   generation with an image + text prompt (built from the plan's crops, garden
+   size, and sunlight), stores a `world_generations` row (`status = processing`)
+   with the `operation_id`, returns it.
+4. Frontend polls `GET /api/gardens/{id}/world/status` every few seconds (patiently
+   — real generation is ~5 minutes).
+5. On `ready`, the frontend fetches `.../world/assets` and renders the returned
+   **Gaussian-splat** scene in-app with [Spark](https://sparkjs.dev/) (three.js),
+   with a link out to the full hosted world. If the splat can't load it falls back
+   to the world's panorama (`.../world/pano`); if that fails too it shows an error
+   with a retry.
 
-Mock behavior: when `MOCK_WORLD_LABS=true`, the backend skips the real call and returns a `ready` status with a prepared `result_url` after a short simulated delay. Keep a real demo world asset checked in so the fallback looks intentional, not broken. Do not build a job queue; the `world_generations` row plus polling is enough.
+**No embedding, no demo world.** The hosted Marble viewer sends
+`X-Frame-Options: DENY`, so it cannot be iframed — that is why we render the splat
+ourselves. There is intentionally no checked-in fallback world: the preview shows
+only real World Labs output.
+
+Mock behavior: `MOCK_WORLD_LABS=true` skips the network and marks the generation
+`ready` with no world, so the preview has nothing to render — use it only when you
+are not exercising the 3D preview. Set `MOCK_WORLD_LABS=false` (with a funded
+`WORLD_LABS_API_KEY`) for the real path. Don't build a job queue; the
+`world_generations` row plus polling is enough, and revisiting a plan resumes the
+existing or in-flight world rather than starting a new (paid) generation.
 
 ---
 
@@ -626,13 +678,22 @@ Optional workflows (planting/harvest/succession reminders, marketplace draft) on
 ## 20. Render Deployment
 
 Render hosts exactly two things. No worker, no Redis, no Render database, no cron.
+Live: frontend https://sprout-1-qckn.onrender.com, backend https://sprout-ldna.onrender.com.
 
-- **Frontend**: Static Site. Build: `npm ci && npm run build`. Publish dir: `frontend/dist`. Env: the three `VITE_` vars.
-- **Backend**: Web Service. Build: `pip install -r requirements.txt`. Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Env: all backend vars from Section 21.
+- **Frontend**: Static Site, root dir `frontend`. Build: `npm ci && npm run build`. Publish dir: `dist`. Env: the three `VITE_` vars.
+- **Backend**: Web Service, root dir `backend`. Build: `pip install -r requirements.txt`. Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Env: all backend vars from Section 21, with `MOCK_WORLD_LABS=false` for the real 3D preview.
 
-Set `FRONTEND_URL` on the backend and configure CORS to allow it. Set `VITE_API_BASE_URL` on the frontend to the backend's Render URL. Deploy the backend first so its URL exists when you configure the frontend.
+Deploy the backend first so its URL exists when you configure the frontend. Then:
 
-A `render.yaml` at the repo root can define both services for one-click setup, but manual creation of two services is fine and sometimes faster during a hackathon.
+- Set **`VITE_API_BASE_URL`** to the backend URL. It is baked in at **build time**, so change it *before* building (a plain redeploy won't rebuild the bundle — clear build cache & deploy).
+- Set **`FRONTEND_URL`** on the backend to the frontend origin **with no trailing slash** — CORS matches the browser's `Origin` header exactly, and a trailing `/` silently blocks every request ("failed to fetch").
+- Add a static-site **rewrite** rule: source `/*`, destination `/index.html`, action **Rewrite** — otherwise refreshing any client route (e.g. `/dashboard`) returns 404.
+- In Supabase → Authentication → URL Configuration, set the **Site URL** to the frontend URL.
+
+`render.yaml` at the repo root defines both services (a Blueprint deploy applies the
+rewrite and env scaffolding automatically); manual creation of two services works
+too but you must add the rewrite rule and env vars yourself. Free-tier backends
+cold-start (~50s) after ~15 min idle.
 
 ---
 
@@ -652,16 +713,21 @@ Placeholders only in `.env.example`. Never commit real values. Never prefix a se
 - **`SUPABASE_SECRET_KEY`**: private key for trusted server operations; may bypass RLS. Backend only. If legacy-only, the equivalent is `SUPABASE_SERVICE_ROLE_KEY`. Prefer the secret key for a new project.
 - **`SUPABASE_DB_URL`**: Postgres connection string. Include **only** if using SQLAlchemy directly. This plan uses the Supabase client, so omit it.
 - **`SUPABASE_JWKS_URL`**: public signing keys for token verification, format `https://PROJECT_REF.supabase.co/auth/v1/.well-known/jwks.json`. Skip custom JWT code if a library handles verification.
-- **`WORLD_LABS_API_KEY`**: private, backend only.
-- **`WORLD_LABS_BASE_URL`**: configurable so mock and real endpoints swap easily.
+- **`WORLD_LABS_API_KEY`**: Marble platform API key (`WLT-Api-Key`), private, backend only. Needs credits for real generation.
+- **`WORLD_LABS_BASE_URL`**: Marble API base, e.g. `https://api.worldlabs.ai`.
+- **`WORLD_LABS_MODEL`**: `marble-1.0 | marble-1.1 | marble-1.1-plus` (default `marble-1.1`).
 - **`OPEN_METEO_BASE_URL`**: Open-Meteo base. No API key needed for the chosen endpoints; do not invent one.
 - **`N8N_WEBHOOK_SECRET`**: random shared value; n8n sends it, backend verifies.
 - **`N8N_BASE_URL`**: only if the backend must trigger n8n directly. If n8n runs on its own schedule, omit.
-- **`FRONTEND_URL`**: for CORS/allowed origins.
+- **`FRONTEND_URL`**: allowed CORS origin. On Render this must be the frontend origin **with no trailing slash** (see §20).
 - **`BACKEND_URL`**: public FastAPI URL n8n calls.
 - **`APP_ENV`**: `development` | `production`.
-- **`MOCK_WORLD_LABS`**: `true` | `false`.
+- **`MOCK_WORLD_LABS`**: `true` | `false`. `false` for the real 3D preview; `true` skips generation (no world to render — there is no demo world).
 - **`MOCK_WEATHER`**: `true` | `false`.
+
+`SUPABASE_JWT_SECRET` (HS256 fallback) is also accepted; leave it empty when using
+JWKS. `config.py` accepts `SUPABASE_SERVICE_ROLE_KEY` as an alias for
+`SUPABASE_SECRET_KEY`.
 
 Do not add: `REDIS_URL`, `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, Render database vars, or ElevenLabs vars.
 
@@ -684,6 +750,8 @@ Required:
 9. Savings calculation returns a range (min <= max).
 10. The plan API returns data the frontend grid can render (shape/contract test).
 11. The n8n webhook rejects a request with a missing or wrong secret.
+12. JWT verification accepts a valid token, tolerates small clock skew (future `iat`), and rejects an expired one.
+13. The World Labs world response parses into splat/pano assets (flat and wrapped shapes).
 
 Tests 2 through 9 are pure functions on the optimizer and estimates modules, so they are fast to write and fast to run. Prioritize them.
 
@@ -703,18 +771,20 @@ Supabase project, tables/migrations, RLS, Storage bucket and policies; FastAPI a
 Curated `crop_seed_data.json` (15 to 25 crops) and `seed.sql`; `optimizer.py` two-stage heuristic; succession linker; `estimates.py` yield and savings. Owns `backend/services/optimizer.py`, `estimates.py`, `backend/data/`. Writes optimizer tests 2 to 9.
 
 **Person 4: Integrations & deployment**
-World Labs service + mock; weather service + Open-Meteo + mock; the n8n workflow; Render deployment of both services; prepared fallback assets (demo world, demo weather event). Owns `backend/services/world_labs.py`, `weather.py`, `n8n/`, Render config.
+World Labs Marble service (media-asset upload, generation, polling, splat/pano assets) + in-app Spark viewer; weather service + Open-Meteo + mock; the n8n workflow; Render deployment of both services. Owns `backend/services/world_labs.py`, `weather.py`, `frontend/src/features/world/`, `n8n/`, Render config.
 
 ---
 
 ## 24. Integration Checkpoints
 
-- **CP0 (hour 1):** Repo scaffolded. Shared plan/assignment TS types and pydantic models agreed and committed. `.env.example` files exist. Supabase project created.
-- **CP1 (end of first block):** Auth works end to end (signup, login, session restore). Gardens table + RLS live. Frontend can create and list a garden.
-- **CP2 (mid):** `GET /api/crops` returns seeded data and renders on the crop-selection page. Optimizer runs on a hard-coded garden and returns a valid plan JSON.
-- **CP3:** `POST .../plans/generate` is wired frontend to backend; the grid renders a real plan; the timeline filters by date. Succession handoff is visible.
-- **CP4:** Yield/savings shown. World Labs preview (mock ok) displays. n8n workflow posts a notification that appears in the dashboard.
-- **CP5 (freeze):** Both services deployed on Render with mock flags set for a reliable demo. Demo script rehearsed once end to end.
+All checkpoints below are **done**.
+
+- **CP0 — done.** Repo scaffolded. Shared plan/assignment TS types and pydantic models committed. `.env.example` files exist. Supabase project created.
+- **CP1 — done.** Auth works end to end (signup, login, session restore). Gardens table + RLS live. Frontend can create, list, and delete a garden.
+- **CP2 — done.** `GET /api/crops` returns seeded data and renders on the crop-selection page. Optimizer returns a valid plan JSON.
+- **CP3 — done.** `POST .../plans/generate` wired frontend to backend; the grid renders a real plan; the timeline filters by date; succession handoff is visible.
+- **CP4 — done.** Yield/savings shown. Real World Labs Marble 3D preview renders in-app. n8n workflow posts a notification that appears in the dashboard.
+- **CP5 — done.** Both services deployed on Render (`MOCK_WORLD_LABS=false` for the real preview).
 
 Contract rule: if anyone changes the plan/assignment shape after CP0, they announce it and update the shared types in the same commit.
 
@@ -722,34 +792,35 @@ Contract rule: if anyone changes the plan/assignment shape after CP0, they annou
 
 ## 25. Prioritized Task Checklist
 
-**P0: must land**
+**P0: must land — all done**
 
-- [ ] Scaffold `frontend/` (Vite + React + TS + Tailwind + Supabase client).
-- [ ] Scaffold `backend/` (FastAPI + pydantic + Supabase client).
-- [ ] Create Supabase project; run migrations for all P0 tables.
-- [ ] Enable RLS + policies on user tables; crops readable by authenticated users.
-- [ ] `profiles` trigger on new user.
-- [ ] Auth screens + session context + route guards.
-- [ ] Garden wizard writes a garden; image uploads to `garden-images`.
-- [ ] Seed 15 to 25 crops + relationships.
-- [ ] `GET /api/crops`; crop-selection page with must-have toggle.
-- [ ] Optimizer stage 1 (must-have placement).
-- [ ] Optimizer stage 2 (space fill + succession).
-- [ ] Estimates: yield range + savings range.
-- [ ] `POST /plans/generate` + `GET /plans/{id}`.
-- [ ] Grid render + timeline slider + date filter + succession handoff visible.
-- [ ] Plan-level yield/savings/utilization display with estimate disclaimer.
-- [ ] World Labs preview or convincing fallback (mock flag).
-- [ ] One n8n weather workflow posting a notification via the webhook.
-- [ ] Deploy frontend (static) + backend (web service) on Render.
+- [x] Scaffold `frontend/` (Vite + React + TS + Tailwind + Supabase client).
+- [x] Scaffold `backend/` (FastAPI + pydantic + Supabase client).
+- [x] Create Supabase project; run migrations for all P0 tables.
+- [x] Enable RLS + policies on user tables; crops readable by authenticated users.
+- [x] `profiles` trigger on new user.
+- [x] Auth screens + session context + route guards.
+- [x] Garden wizard writes a garden; image uploads to `garden-images`.
+- [x] Seed crops + relationships.
+- [x] `GET /api/crops`; crop-selection page with must-have toggle.
+- [x] Optimizer stage 1 (must-have placement).
+- [x] Optimizer stage 2 (space fill + succession).
+- [x] Estimates: yield range + savings range.
+- [x] `POST /plans/generate` + `GET /plans/{id}`.
+- [x] Grid render + timeline slider + date filter + succession handoff visible.
+- [x] Plan-level yield/savings/utilization display with estimate disclaimer.
+- [x] Real World Labs Marble 3D preview, rendered in-app.
+- [x] One n8n weather workflow posting a notification via the webhook.
+- [x] Deploy frontend (static) + backend (web service) on Render.
 
-**P1: if time**
+**P1**
 
-- [ ] Obstacle placement UI + optimizer honoring obstacles.
-- [ ] Real World Labs generation path.
-- [ ] Multiple saved gardens on the dashboard.
+- [x] Real World Labs generation path.
+- [x] Garden delete.
+- [x] Multiple saved gardens on the dashboard.
+- [ ] Obstacle placement UI + optimizer honoring obstacles (backend supports obstacles; no UI yet).
 - [ ] Richer placement explanations.
-- [ ] Notification history + mark-read.
+- [ ] Notification history + mark-read (mark-read exists; no history view).
 - [ ] Mobile layout polish.
 
 **P2: demo/mock**
@@ -767,17 +838,17 @@ Contract rule: if anyone changes the plan/assignment shape after CP0, they annou
 - **0:50, Crops + generate (25s).** Show selected crops with one marked must-have. Click Generate Plan. Plan returns in one request.
 - **1:15, The grid (20s).** Point out crops placed in cells, the legend, yield and savings ranges, utilization percentage.
 - **1:35, Timeline handoff (35s), the centerpiece.** Drag from early June to mid-July. Lettuce disappears, beans appear in the same cells. Say the line: "same soil, second harvest." Show the successor link and explanation.
-- **2:10, 3D preview (25s).** Open the World Labs world (mock flag on for reliability) and pan around.
+- **2:10, 3D preview (25s).** Open the garden's World Labs world (pre-generated so it's ready on cue) and pan around.
 - **2:35, n8n notification (20s).** Trigger the frost/watering notification; it appears in the dashboard. "An automation watches the weather and tells you when to act."
 - **2:55, Close (5s).** "Roughly 31 to 52 kg of food, about $210 to $320 off the grocery bill, this season."
 
-Run the whole thing with `MOCK_WORLD_LABS=true` and `MOCK_WEATHER=true` so no external API can stall the demo.
+Run with `MOCK_WEATHER=true` so the weather step can't stall, and pre-generate the demo garden's World Labs world ahead of time (real generation takes ~5 min) so the 3D preview is instant on stage.
 
 ---
 
 ## 27. Risks and Fallbacks
 
-- **World Labs slow or failing** → `MOCK_WORLD_LABS=true` serves a prepared demo world. Never block the plan page on it.
+- **World Labs slow or failing** → the plan page never blocks on it; a failed or timed-out generation shows an error with a retry (splat → panorama → error). There is no fake fallback world, so if you specifically need the 3D preview on stage, pre-generate the demo garden's world beforehand (revisiting a plan resumes the existing world).
 - **Open-Meteo hiccup or calm weather** → `MOCK_WEATHER=true` plus a manual-trigger branch in n8n that fires a scripted frost notification on cue.
 - **Optimizer produces an ugly or empty layout** → keep a saved known-good plan for the demo garden; the demo garden's crop set is tuned so stage 2 always yields a clean lettuce-to-beans handoff.
 - **RLS misconfig leaks data** → test 1 runs before the demo; keep policies simple (ownership only).
@@ -796,7 +867,7 @@ Sprout is demo-done when, on the deployed Render URLs:
 - A user can select crops, mark must-haves, and generate a plan in one request.
 - The plan renders on the grid, and moving the timeline shows at least one crop being harvested and replaced by a successor in the same cells.
 - The plan shows yield and savings as ranges with the estimate disclaimer.
-- A 3D preview displays (real or fallback).
+- A real World Labs 3D preview generates and renders in-app (no fallback world).
 - At least one n8n weather notification appears in the dashboard.
 - Optimizer tests 2 to 9 and the webhook-secret test pass.
 - No secret key is present in any `VITE_` variable or in the frontend bundle.
