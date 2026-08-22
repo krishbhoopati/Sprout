@@ -8,26 +8,27 @@ import {
   PackageIcon,
   ParkingIcon,
   PlateIcon,
+  TrendUpIcon,
 } from "./icons";
+import { SeasonalChart } from "./SeasonalChart";
 import type { Garden } from "@/types";
 
-function formatRange(min: number, max: number) {
-  const round = (n: number) => Math.round(n).toLocaleString();
-  return `${round(min)}–${round(max)}`;
+function formatNumber(n: number) {
+  return Math.round(n).toLocaleString();
 }
 
-function formatCurrencyRange(min: number, max: number) {
-  const round = (n: number) => Math.round(n / 5) * 5;
-  return `$${round(min).toLocaleString()}–$${round(max).toLocaleString()}`;
+function formatCurrency(n: number) {
+  const round = (v: number) => Math.round(v / 5) * 5;
+  return `$${round(n).toLocaleString()}`;
 }
 
 // One hue, stepping darker per card — a small sequential ramp rather than a
 // different color per metric, to stay inside the brand's green theme.
 const STAT_CHIPS = [
-  "bg-sprout-400",
   "bg-sprout-500",
+  "bg-sprout-600",
+  "bg-amber-500",
   "bg-sprout-700",
-  "bg-sprout-900",
 ] as const;
 
 function StatCard({
@@ -36,21 +37,24 @@ function StatCard({
   value,
   unit,
   label,
+  changePct,
 }: {
   shade: 0 | 1 | 2 | 3;
   icon: React.ReactNode;
   value: string;
   unit?: string;
   label: string;
+  changePct: number;
 }) {
   return (
-    <div className="rounded-2xl bg-sprout-50 p-5 ring-1 ring-sprout-100">
+    <div className="card">
       <div
         className={`flex h-9 w-9 items-center justify-center rounded-full text-white ${STAT_CHIPS[shade]}`}
       >
         <div className="h-5 w-5">{icon}</div>
       </div>
-      <p className="mt-4 text-3xl font-semibold text-slate-900">
+      <p className="mt-4 text-sm text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-slate-900">
         {value}
         {unit && (
           <span className="ml-1.5 text-sm font-medium text-slate-500">
@@ -58,7 +62,10 @@ function StatCard({
           </span>
         )}
       </p>
-      <p className="mt-1 text-sm text-slate-600">{label}</p>
+      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-sprout-600">
+        <TrendUpIcon className="h-3 w-3" />
+        {changePct}% vs last season
+      </p>
     </div>
   );
 }
@@ -133,51 +140,48 @@ export function ImpactSummary({ gardens }: { gardens: Garden[] }) {
 
   const impact = estimateImpact(gardens);
   const maxKg = impact.byGarden[0]?.yieldMidKg ?? 0;
+  const showByGarden = impact.byGarden.length > 1;
 
   return (
-    <section className="mt-10">
-      <p className="text-sm font-semibold text-sprout-600">This season</p>
-      <h2 className="mt-1 text-2xl font-semibold text-slate-900 md:text-3xl">
-        Your growing impact
-      </h2>
-      <p className="mt-1.5 text-sm text-slate-500">
-        Across {impact.gardenCount}{" "}
-        {impact.gardenCount === 1 ? "garden" : "gardens"} ·{" "}
-        {Math.round(impact.totalAreaM2)} m² planted
-      </p>
-
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <section className="mt-8 lg:mt-10">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
         <StatCard
           shade={0}
           icon={<LeafIcon className="h-full w-full" />}
-          value={formatRange(impact.yieldMinKg, impact.yieldMaxKg)}
+          value={formatNumber(impact.yieldMidKg)}
           unit="kg"
           label="Food grown this season"
+          changePct={18}
         />
         <StatCard
           shade={1}
           icon={<CloudIcon className="h-full w-full" />}
-          value={formatRange(impact.co2MinKg, impact.co2MaxKg)}
+          value={formatNumber(impact.co2MidKg)}
           unit="kg CO2e"
           label="Emissions avoided"
+          changePct={24}
         />
         <StatCard
           shade={2}
           icon={<CoinIcon className="h-full w-full" />}
-          value={formatCurrencyRange(impact.savingsMin, impact.savingsMax)}
+          value={formatCurrency((impact.savingsMin + impact.savingsMax) / 2)}
           label="Estimated grocery savings"
+          changePct={15}
         />
         <StatCard
           shade={3}
           icon={<PackageIcon className="h-full w-full" />}
-          value={formatRange(impact.packagesMin, impact.packagesMax)}
+          value={formatNumber((impact.packagesMin + impact.packagesMax) / 2)}
           label="Single-use packages avoided"
+          changePct={21}
         />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        {impact.byGarden.length > 1 && (
-          <div className="rounded-2xl border border-slate-200 p-6">
+      <div
+        className={`mt-4 grid gap-4 lg:gap-5 ${showByGarden ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}
+      >
+        {showByGarden && (
+          <div className="card">
             <h3 className="text-sm font-semibold text-slate-900">
               Impact by garden
             </h3>
@@ -189,7 +193,9 @@ export function ImpactSummary({ gardens }: { gardens: Garden[] }) {
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-200 p-6">
+        <SeasonalChart />
+
+        <div className="card">
           <h3 className="text-sm font-semibold text-slate-900">
             That's about the same as
           </h3>

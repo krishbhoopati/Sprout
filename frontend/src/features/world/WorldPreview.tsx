@@ -223,12 +223,12 @@ export function WorldPreview({
         <div className="mt-3">
           <Suspense
             fallback={
-              <div className="h-64 w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+              <div className="h-[28rem] w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
             }
           >
             <SplatViewer
               src={splatUrl}
-              className="h-64 w-full overflow-hidden rounded-lg border border-slate-200"
+              className="h-[28rem] w-full overflow-hidden rounded-lg border border-slate-200"
               onError={() => {
                 tryPano().then((ok) => {
                   if (!ok) fail("Could not load the generated world.");
@@ -258,12 +258,12 @@ export function WorldPreview({
         <div className="mt-3">
           <Suspense
             fallback={
-              <div className="h-64 w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+              <div className="h-[28rem] w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
             }
           >
             <PanoramaViewer
               src={panoUrl}
-              className="h-64 w-full overflow-hidden rounded-lg border border-slate-200"
+              className="h-[28rem] w-full overflow-hidden rounded-lg border border-slate-200"
               onError={() => fail("Could not load the generated world.")}
             />
           </Suspense>

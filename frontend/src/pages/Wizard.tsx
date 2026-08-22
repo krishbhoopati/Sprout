@@ -84,10 +84,10 @@ export function Wizard() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50">
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="text-3xl font-extrabold text-slate-900">Create a garden</h1>
+        <h1 className="text-3xl font-semibold text-slate-900">Create a garden</h1>
         <p className="mt-1 text-sm text-slate-500">Step {step} of 3</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-6">

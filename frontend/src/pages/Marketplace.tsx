@@ -54,10 +54,10 @@ export function Marketplace() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50">
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-3xl font-extrabold text-slate-900">Marketplace</h1>
+        <h1 className="text-3xl font-semibold text-slate-900">Marketplace</h1>
         <p className="mt-1 text-sm text-slate-500">
           Sell or share your extra harvest, and find produce from other growers
           near you.
