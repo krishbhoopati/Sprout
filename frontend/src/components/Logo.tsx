@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
 
-export function Logo({ to = "/" }: { to?: string }) {
+export function Logo({
+  to = "/",
+  className = "text-sprout-700",
+}: {
+  to?: string;
+  className?: string;
+}) {
   return (
-    <Link to={to} className="flex items-center gap-2 font-extrabold text-sprout-700">
+    <Link to={to} className={`flex items-center gap-2 font-extrabold ${className}`}>
       <svg viewBox="0 0 32 32" className="h-7 w-7" fill="none">
         <path
           d="M16 29V14"
