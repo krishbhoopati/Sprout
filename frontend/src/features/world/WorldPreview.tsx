@@ -214,7 +214,7 @@ export function WorldPreview({
               }}
             />
           </Suspense>
-          <div className="mt-2 flex items-center justify-between">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="text-xs text-slate-500">
               Drag to look around · scroll to move.
             </span>
@@ -223,7 +223,7 @@ export function WorldPreview({
                 href={marbleWorldUrl(worldId)}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm font-semibold text-sprout-700"
+                className="whitespace-nowrap text-sm font-semibold text-sprout-700"
               >
                 Explore the full 3D world ↗
               </a>

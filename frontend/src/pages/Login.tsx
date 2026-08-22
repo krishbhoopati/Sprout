@@ -32,7 +32,7 @@ export function Login() {
       footer={
         <>
           No account?{" "}
-          <Link to="/signup" className="font-semibold text-sprout-700">
+          <Link to="/signup" className="font-semibold text-white underline">
             Sign up
           </Link>
         </>

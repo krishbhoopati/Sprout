@@ -104,7 +104,7 @@ export function Plan() {
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <h1 className="mb-3 text-2xl font-bold text-slate-900">
+            <h1 className="mb-3 text-3xl font-extrabold text-slate-900">
               Your planting plan
             </h1>
             <GardenGrid

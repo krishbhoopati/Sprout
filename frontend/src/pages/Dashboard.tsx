@@ -31,7 +31,7 @@ export function Dashboard() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-slate-900">Your gardens</h1>
+              <h1 className="text-3xl font-extrabold text-slate-900">Your gardens</h1>
               <Link to="/gardens/new" className="btn-primary">
                 + Create garden
               </Link>
