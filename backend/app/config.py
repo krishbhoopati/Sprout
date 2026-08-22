@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,9 +11,22 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    # Supabase
-    supabase_url: str = ""
-    supabase_secret_key: str = ""
+    # Supabase. Accept several common env var names for the same value so the
+    # backend works whether the project uses SUPABASE_* or NEXT_PUBLIC_* naming.
+    supabase_url: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"
+        ),
+    )
+    # The backend requires a SECRET / service_role key (bypasses RLS). The
+    # publishable/anon key is NOT sufficient for server-side writes.
+    supabase_secret_key: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"
+        ),
+    )
     supabase_jwks_url: str = ""
     supabase_jwt_secret: str = ""
 
