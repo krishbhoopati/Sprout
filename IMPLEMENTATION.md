@@ -30,8 +30,12 @@ This document is written to be executed directly by coding agents and a four-per
   notifications API is unreachable, so it is never blank/broken.
 - **Plan grid** shows the space each plan occupies with a dashed cell overlay and
   each crop block labelled with its real-world size.
+- **Marketplace shipped** (was P2 "first to cut"): list surplus crops to
+  sell/trade/give away, browse other growers' listings by crop + city, and reserve
+  an item (seller notified; handoff offline). See §12 and §18b.
 - **UI**: a hero-image landing page, pill buttons and the garden hero carried into
-  the auth pages, and a dashboard "impact summary" section.
+  the auth pages, a dashboard "impact summary" section, and a centered top nav
+  (Garden · Marketplace) on the signed-in pages.
 
 ---
 
@@ -65,7 +69,7 @@ If you are reading this inside a repo that already has code, stop and reconcile:
 
 **Valuable if time allows (P1):** obstacle placement, multiple saved gardens, richer placement explanations, notification history, mobile polish. *(Real World Labs generation and garden delete shipped.)*
 
-**Mock or demo-only (P2):** marketplace feed, create-listing, companion-plant visual explanations.
+**Mock or demo-only (P2):** companion-plant visual explanations. *(The crop marketplace — list/browse/reserve surplus — was originally P2 but is now built; see §12 and §18b.)*
 
 **Out of scope:** Redis, Auth0, ElevenLabs, payments, delivery, real-time chat, pixel-perfect measurement from photos, CV model training, native mobile, full social features, marketplace moderation, city-wide coordination, microservices, Kubernetes, scraping pipelines.
 
@@ -257,7 +261,7 @@ Tables and key columns:
 - **`plot_assignments`**: `id`, `plan_id`, `crop_id`, `x`, `y`, `width_cells`, `height_cells`, `plant_date`, `harvest_start`, `harvest_end`, `plant_count`, `estimated_minimum_yield_kg`, `estimated_maximum_yield_kg`, `successor_assignment_id` (nullable self-FK), `explanation`.
 - **`notifications`**: `id`, `user_id`, `garden_id`, `type`, `title`, `message`, `is_read`, `created_at`.
 - **`world_generations`**: `id`, `garden_id`, `operation_id`, `world_id`, `status`, `result_url`, `error_message`, `created_at`, `updated_at`.
-- **`marketplace_listings`** (P2 only): `id`, `user_id`, `title`, `category`, `description`, `quantity`, `unit`, `exchange_type`, `approximate_area`, `image_path`, `status`, `created_at`.
+- **`marketplace_listings`**: `id`, `user_id`, `crop_id` (nullable FK to `crops`; null = free-text "other" in `title`), `title`, `exchange_type` (`sell`|`trade`|`free`), `price_per_unit`, `quantity`, `unit`, `city`, `description`, `status` (`draft`|`published`|`reserved`|`completed`|`archived`), `reserved_by` (FK to `auth.users`), `reserved_at`, `image_path`, `created_at`, `updated_at`. Added to the original stub by `migrations/0002_marketplace.sql`. (`category`/`approximate_area` are legacy, unused.)
 
 Put each table in a migration under `supabase/migrations/`. Seed `crops` and `crop_relationships` from `seed.sql`.
 
@@ -371,9 +375,17 @@ Common codes: `unauthorized` (401), `forbidden` (403), `not_found` (404), `valid
 - **`GET /api/gardens/{garden_id}/world/assets`**: for a ready world, returns the splat scene URL(s), panorama URL, and scale metadata the in-app viewer needs.
 - **`GET /api/gardens/{garden_id}/world/pano`**: same-origin proxy of the world's equirectangular panorama (avoids CORS for the WebGL texture), used as a fallback view.
 
-### Marketplace (P2 only)
+### Marketplace
 
-- **`POST /api/marketplace/listings`**, **`GET /api/marketplace/listings`**, **`GET /api/marketplace/listings/{listing_id}`**. Standard CRUD-read. Skip unless the core flow is done.
+Backend-mediated (seller name/city come from `profiles`, which RLS hides from other users).
+
+- **`POST /api/marketplace/listings`**: create a listing (owner = caller; status `published`; `city` defaults from the caller's profile; `sell` requires `price_per_unit`).
+- **`GET /api/marketplace/listings`**: browse other users' published, unreserved listings — who you can buy from. Filters: `crop_id`, `city`, `exchange_type`. Returns seller name/city + crop name.
+- **`GET /api/marketplace/listings/mine`**: the caller's listings (selling), any status, with reserver info.
+- **`GET /api/marketplace/listings/reserved`**: listings the caller has reserved (buying).
+- **`PATCH` / `DELETE /api/marketplace/listings/{id}`**: owner-checked edit/remove.
+- **`POST /api/marketplace/listings/{id}/reserve`**: reserve a published listing (not your own, not already reserved); sets `reserved_by`/`status='reserved'` and writes a `marketplace_reserved` notification to the seller.
+- **`DELETE /api/marketplace/listings/{id}/reserve`**: the reserver cancels; back to `published`.
 
 **Plan response example:**
 
@@ -593,9 +605,9 @@ Example plan-level line for the demo:
 8. **3D preview**: embedded in the plan page; polls world status, renders the generated Marble splat world in-app (panorama fallback, error + retry).
 9. **Notification panel**: list, unread badges, mark-read; falls back to built-in notifications if the API is unreachable.
 
-**Optional (P2):** 10. Marketplace feed. 11. Create-listing.
+10. **Marketplace**: Browse (crop + city filters, Reserve), My listings (create form + delete), and Reserved tabs.
 
-Guard all authed pages with a session check that redirects to login when there is no session.
+Signed-in pages share a centered top nav (Garden · Marketplace) via `components/AppHeader.tsx`. Guard all authed pages with a session check that redirects to login when there is no session.
 
 ---
 
@@ -654,6 +666,20 @@ are not exercising the 3D preview. Set `MOCK_WORLD_LABS=false` (with a funded
 `WORLD_LABS_API_KEY`) for the real path. Don't build a job queue; the
 `world_generations` row plus polling is enough, and revisiting a plan resumes the
 existing or in-flight world rather than starting a new (paid) generation.
+
+---
+
+## 18b. Marketplace
+
+A place to move surplus harvest between growers. Sellers post listings; buyers
+browse and reserve. No in-app payments — reserving marks the item spoken-for and
+notifies the seller, who arranges the handoff offline.
+
+- **Data**: `marketplace_listings` (see §9), extended by `migrations/0002_marketplace.sql`. A listing links to a curated `crop_id` or carries a free-text `title` ("other"), an `exchange_type` of `sell`/`trade`/`free` (+ `price_per_unit` when selling), a `city`, and reservation fields.
+- **Backend-mediated**: all reads/writes go through `routes/marketplace.py` (secret key), because seller name/city live in `profiles`, which RLS hides from other users, and because `reserve` must update a row the buyer does not own. Endpoints in §12.
+- **Reserve flow**: `POST .../reserve` validates the listing is published, not the caller's own, and unreserved; sets `reserved_by`/`status='reserved'`; inserts a `marketplace_reserved` notification for the seller (same mechanism as the n8n webhook). The buyer can cancel, returning it to `published`.
+- **Frontend**: `pages/Marketplace.tsx` with Browse (crop + city filters, Reserve), My listings (create form — curated crop `<select>` or "Other", price suggested from the crop's `estimated_price_per_kg`), and Reserved tabs. Reached from the centered top nav.
+- **Out of scope (v1)**: payments, listing photos, partial-quantity reservations, buyer "wanted" ads, ratings, distance ranking (city filter only).
 
 ---
 
@@ -823,10 +849,9 @@ Contract rule: if anyone changes the plan/assignment shape after CP0, they annou
 - [ ] Notification history + mark-read (mark-read exists; no history view).
 - [ ] Mobile layout polish.
 
-**P2: demo/mock**
+**P2**
 
-- [ ] Marketplace feed (read).
-- [ ] Create-listing form.
+- [x] Marketplace: list surplus, browse by crop/city, reserve (seller notified).
 - [ ] Companion-plant visual hints.
 
 ---
@@ -853,7 +878,7 @@ Run with `MOCK_WEATHER=true` so the weather step can't stall, and pre-generate t
 - **Optimizer produces an ugly or empty layout** → keep a saved known-good plan for the demo garden; the demo garden's crop set is tuned so stage 2 always yields a clean lettuce-to-beans handoff.
 - **RLS misconfig leaks data** → test 1 runs before the demo; keep policies simple (ownership only).
 - **Render cold start on the backend** → hit the backend once right before presenting to warm it.
-- **Time crunch** → drop P1/P2 first; the P0 checklist is the demo. Marketplace is the first thing to cut.
+- **Time crunch** → the P0 checklist is the demo; drop remaining P1/P2 polish first.
 - **Contract drift between FE and BE** → the CP0 shared types rule; nobody changes the plan shape without updating types in the same commit.
 
 ---

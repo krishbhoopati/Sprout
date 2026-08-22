@@ -32,6 +32,7 @@ Base path `/api`. All non-webhook endpoints require `Authorization: Bearer <supa
 - **Plans** — `POST /gardens/{id}/plans/generate`, `GET /plans/{id}`.
 - **Weather** — `GET /gardens/{id}/weather`.
 - **World (Marble)** — `POST /gardens/{id}/world` (start generation from the garden photo + planned crops), `GET /gardens/{id}/world/status`, `GET /gardens/{id}/world/assets` (splat/pano URLs + scale metadata), `GET /gardens/{id}/world/pano` (same-origin panorama proxy).
+- **Marketplace** — `POST /marketplace/listings`, `GET /marketplace/listings` (browse others' published/unreserved, filters `crop_id`/`city`/`exchange_type`), `GET /marketplace/listings/mine`, `GET /marketplace/listings/reserved`, `PATCH`/`DELETE /marketplace/listings/{id}`, `POST`/`DELETE /marketplace/listings/{id}/reserve`. Reserving notifies the seller. Backend-mediated because seller name/city come from `profiles`, which RLS hides from other users.
 - **Webhook** — `POST /webhooks/n8n/weather-notification` (shared-secret header `X-N8N-Secret`, not a user token).
 
 ## Auth

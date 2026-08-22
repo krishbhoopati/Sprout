@@ -18,6 +18,7 @@ See [`IMPLEMENTATION.md`](./IMPLEMENTATION.md) for the full architecture and bui
 - **Plan view** — a garden grid sized to the plan, with a dashed cell overlay and each crop block labelled with its real-world size, a legend, a timeline slider that swaps crops for successors by date, and yield/savings ranges.
 - **3D preview** — the backend sends the garden photo + planned crops to the World Labs Marble API and the plan page renders the generated Gaussian-splat world in-app (via Spark/three.js), with a link out to the full hosted world.
 - **Notifications** — an n8n weather workflow posts frost/watering alerts through a signed webhook; the panel falls back to a few built-in notifications if the API is unreachable.
+- **Marketplace** — list surplus produce to sell, trade, or give away (linked to a curated crop or a free-text "other"), browse other growers' listings filtered by crop and city, and reserve an item — the seller gets a notification and the handoff is arranged offline (no in-app payments).
 
 ## Structure
 

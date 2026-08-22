@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .errors import ApiError
-from .routes import crops, gardens, plans, weather, webhooks, world
+from .routes import crops, gardens, marketplace, plans, weather, webhooks, world
 
 app = FastAPI(title="Sprout API", version="0.1.0")
 
@@ -40,4 +40,5 @@ app.include_router(gardens.router)
 app.include_router(plans.router)
 app.include_router(weather.router)
 app.include_router(world.router)
+app.include_router(marketplace.router)
 app.include_router(webhooks.router)
