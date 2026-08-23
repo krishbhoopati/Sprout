@@ -119,6 +119,46 @@ export interface Notification {
   created_at: string;
 }
 
+export type ExchangeType = "sell" | "trade" | "free";
+
+export type ListingStatus =
+  | "draft"
+  | "published"
+  | "reserved"
+  | "completed"
+  | "archived";
+
+export interface MarketplaceListing {
+  id: string;
+  crop_id: string | null;
+  crop_name: string | null;
+  title: string;
+  exchange_type: ExchangeType | null;
+  price_per_unit: number | null;
+  quantity: number | null;
+  unit: string | null;
+  city: string | null;
+  description: string | null;
+  status: ListingStatus;
+  seller_name: string | null;
+  seller_city: string | null;
+  reserved_by_name: string | null;
+  is_mine: boolean;
+  is_reserved_by_me: boolean;
+  created_at: string | null;
+}
+
+export interface MarketplaceListingCreate {
+  crop_id?: string | null;
+  title: string;
+  exchange_type: ExchangeType;
+  price_per_unit?: number | null;
+  quantity?: number | null;
+  unit?: string | null;
+  city?: string | null;
+  description?: string | null;
+}
+
 export interface WeatherCurrent {
   temperature_c: number;
   precipitation_mm: number;

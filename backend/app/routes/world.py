@@ -128,10 +128,10 @@ async def world_status(garden_id: str, user_id: CurrentUser) -> WorldStatusRespo
         age = (datetime.now(timezone.utc) - created).total_seconds()
         if age < _MOCK_DELAY_SECONDS:
             return WorldStatusResponse(status="processing")
-        sb.table("world_generations").update(
-            {"status": "ready", "result_url": world_labs.DEMO_WORLD_URL}
-        ).eq("id", row["id"]).execute()
-        return WorldStatusResponse(status="ready", result_url=world_labs.DEMO_WORLD_URL)
+        sb.table("world_generations").update({"status": "ready"}).eq(
+            "id", row["id"]
+        ).execute()
+        return WorldStatusResponse(status="ready")
 
     status, world_id, result_url, error = await world_labs.check_status(
         row["operation_id"]

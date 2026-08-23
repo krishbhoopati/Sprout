@@ -37,6 +37,7 @@ export function Signup() {
     <AuthLayout
       title="Create your account"
       subtitle="Start planning your season-long garden."
+      backgroundImage="/login.png"
       footer={
         <>
           Already have an account?{" "}

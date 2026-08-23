@@ -10,8 +10,8 @@ panorama (`assets.imagery.pano_url`) which we render in-app, plus a hosted
 explorable viewer at `world_marble_url` (opened in a new tab — that page sends
 `X-Frame-Options: DENY`, so it cannot be embedded in an iframe).
 
-When MOCK_WORLD_LABS=true (the default for demos) we skip the network entirely
-and serve the checked-in demo world (frontend/public/demo-world/).
+When MOCK_WORLD_LABS=true we skip the network and simulate a generation that
+completes with no world (the app renders only real World Labs output).
 """
 
 from __future__ import annotations
@@ -22,11 +22,6 @@ import httpx
 
 from ..config import settings
 from ..errors import upstream_unavailable
-
-# A prepared demo world checked into the frontend (frontend/public/demo-world/).
-# It is a self-contained, explorable 3D garden served same-origin as the app, so
-# the fallback looks intentional rather than a broken external embed (§18).
-DEMO_WORLD_URL = "/demo-world/index.html"
 
 _API_KEY_HEADER = "WLT-Api-Key"
 
@@ -121,7 +116,7 @@ async def check_status(
 ) -> tuple[str, str | None, str | None, str | None]:
     """Poll a generation. Returns (status, world_id, result_url, error_message)."""
     if is_mock():
-        return "ready", None, DEMO_WORLD_URL, None
+        return "ready", None, None, None
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:

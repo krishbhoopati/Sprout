@@ -182,6 +182,55 @@ class WorldAssetsResponse(BaseModel):
     ground_plane_offset: Optional[float] = None
 
 
+# ---- Marketplace ----
+ExchangeType = Literal["sell", "trade", "free"]
+ListingStatus = Literal["draft", "published", "reserved", "completed", "archived"]
+
+
+class MarketplaceListingCreate(BaseModel):
+    # crop_id links to the curated crops table; omit it and set title for "other".
+    crop_id: Optional[str] = None
+    title: str = Field(min_length=1, max_length=120)
+    exchange_type: ExchangeType
+    price_per_unit: Optional[float] = Field(default=None, ge=0)
+    quantity: Optional[float] = Field(default=None, ge=0)
+    unit: Optional[str] = Field(default=None, max_length=20)
+    city: Optional[str] = None
+    description: Optional[str] = Field(default=None, max_length=1000)
+
+
+class MarketplaceListingUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    exchange_type: Optional[ExchangeType] = None
+    price_per_unit: Optional[float] = Field(default=None, ge=0)
+    quantity: Optional[float] = Field(default=None, ge=0)
+    unit: Optional[str] = Field(default=None, max_length=20)
+    city: Optional[str] = None
+    description: Optional[str] = Field(default=None, max_length=1000)
+    status: Optional[ListingStatus] = None
+
+
+class MarketplaceListing(BaseModel):
+    id: str
+    crop_id: Optional[str] = None
+    crop_name: Optional[str] = None
+    title: str
+    exchange_type: Optional[ExchangeType] = None
+    price_per_unit: Optional[float] = None
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    city: Optional[str] = None
+    description: Optional[str] = None
+    status: ListingStatus
+    seller_name: Optional[str] = None
+    seller_city: Optional[str] = None
+    # Name of the buyer who reserved this listing (shown to the seller under "mine").
+    reserved_by_name: Optional[str] = None
+    is_mine: bool = False
+    is_reserved_by_me: bool = False
+    created_at: Optional[datetime] = None
+
+
 # ---- Notifications (webhook) ----
 class N8nNotification(BaseModel):
     user_id: str

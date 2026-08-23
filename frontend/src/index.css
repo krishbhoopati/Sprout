@@ -11,12 +11,19 @@
   body {
     @apply bg-sprout-50 text-slate-800 antialiased;
   }
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+  }
 }
 
 @layer components {
-  /* Pill buttons to match the landing page CTAs. */
+  /* Pill buttons to match the landing page CTAs. Feedback fires on press
+     (active), not just on hover/release, and settles with a critically
+     damped ease rather than linear/default timing. */
   .btn {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sprout-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-150 ease-out active:scale-[0.96] active:duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sprout-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100;
   }
   .btn-primary {
     @apply btn bg-sprout-600 text-white hover:bg-sprout-700;
@@ -25,12 +32,78 @@
     @apply btn border border-sprout-200 bg-white text-sprout-700 hover:bg-sprout-50;
   }
   .input {
-    @apply w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sprout-500 focus:ring-2 focus:ring-sprout-200;
+    @apply w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition-[border-color,box-shadow] duration-150 ease-out focus:border-sprout-500 focus:ring-2 focus:ring-sprout-200;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-slate-700;
   }
   .card {
     @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-sm;
+  }
+  .card-interactive {
+    @apply card transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-sprout-200 hover:shadow-md active:translate-y-0 active:scale-[0.99] active:duration-75;
+  }
+}
+
+/* Timeline slider: a custom thumb that grows on press so a drag feels
+   grabbed rather than just clicked, with a hand-rolled fill track since
+   `accent-color` gives no control over the thumb's press state. */
+.timeline-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: #40721d;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+.timeline-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+.timeline-slider:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+  transition-duration: 75ms;
+}
+.timeline-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: #40721d;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+.timeline-slider:hover::-moz-range-thumb {
+  transform: scale(1.1);
+}
+.timeline-slider:active::-moz-range-thumb {
+  transform: scale(1.3);
+  transition-duration: 75ms;
+}
+.timeline-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -29,6 +29,7 @@ export function Login() {
     <AuthLayout
       title="Welcome back"
       subtitle="Log in to your Sprout account."
+      backgroundImage="/login.png"
       footer={
         <>
           No account?{" "}

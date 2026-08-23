@@ -18,12 +18,13 @@ export function TimelineSlider({
     totalDays,
     Math.max(0, daysBetween(start, value))
   );
+  const percent = (currentDay / totalDays) * 100;
 
   return (
     <div className="card">
       <div className="flex items-baseline justify-between">
         <span className="text-sm font-medium text-slate-500">Timeline</span>
-        <span className="text-lg font-bold text-sprout-700">
+        <span className="text-lg font-bold text-sprout-700 transition-transform duration-150">
           {formatDate(value)}
         </span>
       </div>
@@ -33,7 +34,10 @@ export function TimelineSlider({
         max={totalDays}
         value={currentDay}
         onChange={(e) => onChange(addDays(start, Number(e.target.value)))}
-        className="mt-3 w-full accent-sprout-600"
+        className="timeline-slider mt-3 w-full"
+        style={{
+          background: `linear-gradient(to right, #40721d ${percent}%, #e2e8f0 ${percent}%)`,
+        }}
       />
       <div className="mt-1 flex justify-between text-xs text-slate-400">
         <span>{formatDate(start)}</span>

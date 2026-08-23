@@ -3,8 +3,9 @@
 Run these in the Supabase SQL editor (or via the CLI) in order:
 
 1. `migrations/0001_initial_schema.sql` — tables + the new-user profile trigger.
-2. `seed.sql` — curated crops and companion/conflict relationships.
-3. `rls-policies.sql` — row level security and the storage bucket policy.
+2. `migrations/0002_marketplace.sql` — extends `marketplace_listings` (crop link, price, city, reservation fields).
+3. `seed.sql` — curated crops and companion/conflict relationships.
+4. `rls-policies.sql` — row level security and the storage bucket policy.
 
 ## Storage
 

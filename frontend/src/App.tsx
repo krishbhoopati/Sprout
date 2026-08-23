@@ -7,6 +7,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { Wizard } from "@/pages/Wizard";
 import { Crops } from "@/pages/Crops";
 import { Plan } from "@/pages/Plan";
+import { Marketplace } from "@/pages/Marketplace";
 
 export function App() {
   return (
@@ -44,6 +45,14 @@ export function App() {
         element={
           <ProtectedRoute>
             <Plan />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/marketplace"
+        element={
+          <ProtectedRoute>
+            <Marketplace />
           </ProtectedRoute>
         }
       />

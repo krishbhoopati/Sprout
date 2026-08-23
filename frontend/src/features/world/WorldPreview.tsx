@@ -2,9 +2,9 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { marbleWorldUrl, worldApi } from "./api";
 import type { WorldStatus } from "@/types";
 
-// Lazy so three.js/Spark are only downloaded when a real Marble world is
-// displayed. The splat viewer shows the actual generated 3D world; the
-// panorama viewer is a lighter fallback.
+// Lazy so three.js/Spark are only downloaded when a Marble world is displayed.
+// The splat viewer shows the actual generated 3D world; the panorama viewer is
+// a lighter fallback rendering the same world's pano image.
 const SplatViewer = lazy(() =>
   import("./SplatViewer").then((m) => ({ default: m.SplatViewer }))
 );
@@ -12,33 +12,24 @@ const PanoramaViewer = lazy(() =>
   import("./PanoramaViewer").then((m) => ({ default: m.PanoramaViewer }))
 );
 
-// A prepared, explorable demo world checked into public/demo-world/ so the
-// preview always shows a convincing 3D garden on stage — served same-origin,
-// so it works even when the backend is unreachable (§18).
-const FALLBACK_WORLD_URL = "/demo-world/index.html";
-
-// Real Marble generation takes ~5 minutes; poll patiently before falling back.
+// Real Marble generation takes ~5 minutes; poll patiently.
 const POLL_INTERVAL_MS = 4000;
 const MAX_ATTEMPTS = 180; // ~12 minutes
 
 type UiState = "idle" | "starting" | "processing" | "ready" | "failed";
-type ViewMode = "splat" | "pano" | "demo";
+type ViewMode = "splat" | "pano";
 
 export function WorldPreview({
   gardenId,
-  demoWorldUrl = FALLBACK_WORLD_URL,
   cropNames,
 }: {
   gardenId: string;
-  // Personalized demo-world URL (garden grid + crops). Used for the demo/mock
-  // and any fallback, so the embedded 3D bed reflects the user's real plan.
-  demoWorldUrl?: string;
   // Crop names from the plan; sent to World Labs so the generated world
   // features the vegetables the user actually planned.
   cropNames?: string[];
 }) {
   const [state, setState] = useState<UiState>("idle");
-  const [mode, setMode] = useState<ViewMode>("demo");
+  const [mode, setMode] = useState<ViewMode>("splat");
   const [splatUrl, setSplatUrl] = useState<string | null>(null);
   const [panoUrl, setPanoUrl] = useState<string | null>(null);
   const [worldId, setWorldId] = useState<string | null>(null);
@@ -68,35 +59,33 @@ export function WorldPreview({
     []
   );
 
-  // Demo mode ALWAYS renders our own same-origin, personalized demo world.
-  // We never iframe an arbitrary external URL: sites like worldlabs.ai /
-  // marble.worldlabs.ai send frame-ancestors/X-Frame-Options that block
-  // framing and render as broken.
-  const showDemo = () => {
-    setMode("demo");
-    setState("ready");
+  const fail = (message: string) => {
+    setError(message);
+    setState("failed");
   };
 
   const finishReady = async (wid: string | null) => {
-    // A real Marble world → render its actual splat scene in-app with Spark
-    // (the hosted Marble viewer cannot be iframed, X-Frame-Options: DENY;
-    // we still link out to it for the full experience).
-    if (wid) {
-      setWorldId(wid);
-      try {
-        const assets = await worldApi.assets(gardenId);
-        if (assets.splat_url) {
-          setSplatUrl(assets.splat_url);
-          setMode("splat");
-          setState("ready");
-          return;
-        }
-      } catch {
-        // Assets not fetchable — try the flat panorama next.
-      }
-      if (await tryPano()) return;
+    // Render the world's actual splat scene in-app with Spark (the hosted
+    // Marble viewer cannot be iframed, X-Frame-Options: DENY; we still link
+    // out to it for the full experience).
+    if (!wid) {
+      fail("The generator did not return a world. Try again.");
+      return;
     }
-    showDemo();
+    setWorldId(wid);
+    try {
+      const assets = await worldApi.assets(gardenId);
+      if (assets.splat_url) {
+        setSplatUrl(assets.splat_url);
+        setMode("splat");
+        setState("ready");
+        return;
+      }
+    } catch {
+      // Assets not fetchable — try the flat panorama next.
+    }
+    if (await tryPano()) return;
+    fail("Could not load the generated world.");
   };
 
   // Fallback: render the world's equirectangular panorama. Returns success.
@@ -127,14 +116,14 @@ export function WorldPreview({
           await finishReady(s.world_id ?? null);
         } else if (status === "failed") {
           stopPolling();
-          showDemo(); // fall back to the demo world rather than showing an error
+          fail(s.error_message ?? "World generation failed. Try again.");
         }
       } catch {
         // ignore transient poll errors
       }
       if (attempts > MAX_ATTEMPTS) {
         stopPolling();
-        showDemo();
+        fail("Generation is taking longer than expected. Check back soon.");
       }
     }, POLL_INTERVAL_MS);
   };
@@ -147,8 +136,9 @@ export function WorldPreview({
       setState("processing");
       startPolling();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start generation.");
-      showDemo();
+      fail(
+        err instanceof Error ? err.message : "Could not start generation."
+      );
     }
   };
 
@@ -193,23 +183,55 @@ export function WorldPreview({
         </p>
       )}
 
-      {error && state !== "ready" && (
-        <p className="mt-3 text-sm text-amber-700">{error}</p>
+      {state === "failed" && (
+        <div className="mt-3 text-sm">
+          <p className="text-amber-700">
+            {error ?? "Could not load the 3D world."}
+          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                // Reload the existing world when there is one — starting a
+                // new generation costs credits and takes minutes.
+                setError(null);
+                if (worldId) {
+                  setState("processing");
+                  void finishReady(worldId);
+                } else {
+                  void start();
+                }
+              }}
+            >
+              Try again
+            </button>
+            {worldId && (
+              <a
+                href={marbleWorldUrl(worldId)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-semibold text-sprout-700"
+              >
+                Open in Marble ↗
+              </a>
+            )}
+          </div>
+        </div>
       )}
 
       {state === "ready" && mode === "splat" && splatUrl && (
         <div className="mt-3">
           <Suspense
             fallback={
-              <div className="h-64 w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+              <div className="h-[28rem] w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
             }
           >
             <SplatViewer
               src={splatUrl}
-              className="h-64 w-full overflow-hidden rounded-lg border border-slate-200"
+              className="h-[28rem] w-full overflow-hidden rounded-lg border border-slate-200"
               onError={() => {
                 tryPano().then((ok) => {
-                  if (!ok) showDemo();
+                  if (!ok) fail("Could not load the generated world.");
                 });
               }}
             />
@@ -236,13 +258,13 @@ export function WorldPreview({
         <div className="mt-3">
           <Suspense
             fallback={
-              <div className="h-64 w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+              <div className="h-[28rem] w-full animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
             }
           >
             <PanoramaViewer
               src={panoUrl}
-              className="h-64 w-full overflow-hidden rounded-lg border border-slate-200"
-              onError={() => showDemo()}
+              className="h-[28rem] w-full overflow-hidden rounded-lg border border-slate-200"
+              onError={() => fail("Could not load the generated world.")}
             />
           </Suspense>
           <div className="mt-2 flex items-center justify-between">
@@ -260,25 +282,6 @@ export function WorldPreview({
               </a>
             )}
           </div>
-        </div>
-      )}
-
-      {state === "ready" && mode === "demo" && (
-        <div className="mt-3">
-          <iframe
-            title="3D garden preview"
-            src={demoWorldUrl}
-            className="h-64 w-full rounded-lg border border-slate-200"
-            allow="fullscreen"
-          />
-          <a
-            href={demoWorldUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block text-sm font-semibold text-sprout-700"
-          >
-            Open in a new tab →
-          </a>
         </div>
       )}
     </div>

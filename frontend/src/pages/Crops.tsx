@@ -77,12 +77,12 @@ export function Crops() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50">
       <AppHeader />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900">Pick your crops</h1>
+            <h1 className="text-3xl font-semibold text-slate-900">Pick your crops</h1>
             <p className="text-sm text-slate-500">
               Tap the priority chip to mark a crop must-have.
             </p>

@@ -3,19 +3,13 @@ import { Logo } from "@/components/Logo";
 
 export function Landing() {
   return (
-    <div className="relative h-screen overflow-hidden">
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/landingpage1.png')" }}
-      />
-      <div className="fixed inset-0 -z-10 bg-black/40" />
-
-      <header className="flex items-center justify-between px-6 py-4 md:px-12">
-        <Logo className="text-white" />
+    <div className="flex h-screen flex-col overflow-hidden bg-white">
+      <header className="flex shrink-0 items-center justify-between px-6 py-4 md:px-12">
+        <Logo className="text-sprout-700" />
         <nav className="flex items-center gap-5 text-sm">
           <Link
             to="/login"
-            className="font-medium text-white/90 transition hover:text-white"
+            className="font-medium text-slate-700 transition-[color,opacity] duration-150 hover:text-slate-900 active:opacity-60"
           >
             Log in
           </Link>
@@ -25,23 +19,38 @@ export function Landing() {
         </nav>
       </header>
 
-      <main className="mx-auto flex h-[calc(100vh-72px)] max-w-6xl flex-col items-center justify-start px-4 pt-16 text-center md:pt-24">
-        <section className="max-w-5xl">
-          <h1 className="text-5xl font-extrabold leading-tight text-white md:text-7xl">
-            Grow food that's good for the planet.
+      <section className="mx-auto w-full max-w-[96rem] shrink-0 px-6 pb-6 md:px-16">
+        <div className="max-w-2xl">
+          <h1 className="text-4xl font-extrabold leading-tight text-slate-900 md:text-6xl">
+            More food from every square foot.
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-xl text-white/90 md:text-2xl">
-            Sprout plans a season-long garden for your own yard, balcony, or
-            raised bed, cutting food miles, packaging waste, and the
-            environmental footprint of what ends up on your plate.
+          <p className="mt-4 max-w-2xl text-lg text-slate-600 md:text-xl">
+            Sprout intelligently plans your garden around your space and
+            season, helping you grow efficiently while reducing packaging,
+            transportation, and food waste.
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <Link to="/signup" className="btn-primary rounded-full px-6 py-3 text-base">
               Plan my garden
             </Link>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
+
+      <div className="mx-auto min-h-0 w-full max-w-[96rem] flex-1 px-6 pb-6 md:px-16">
+        <div className="relative h-full w-full overflow-hidden rounded-2xl">
+          <video
+            className="h-full w-full object-cover"
+            autoPlay
+            loop
+            muted
+            playsInline
+          >
+            <source src="/sproutbackg.mp4" type="video/mp4" />
+            <source src="/sproutbackg.mov" type="video/quicktime" />
+          </video>
+        </div>
+      </div>
     </div>
   );
 }

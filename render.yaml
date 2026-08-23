@@ -15,8 +15,9 @@ services:
         value: production
       - key: MOCK_WEATHER
         value: "true"
+      # Real Marble generation (the app renders only real World Labs worlds).
       - key: MOCK_WORLD_LABS
-        value: "true"
+        value: "false"
       - key: OPEN_METEO_BASE_URL
         value: https://api.open-meteo.com
       - key: WORLD_LABS_BASE_URL

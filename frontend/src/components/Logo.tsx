@@ -8,7 +8,10 @@ export function Logo({
   className?: string;
 }) {
   return (
-    <Link to={to} className={`flex items-center gap-2 font-extrabold ${className}`}>
+    <Link
+      to={to}
+      className={`flex items-center gap-2 font-extrabold transition-transform duration-150 active:scale-95 ${className}`}
+    >
       <svg viewBox="0 0 32 32" className="h-7 w-7" fill="none">
         <path
           d="M16 29V14"

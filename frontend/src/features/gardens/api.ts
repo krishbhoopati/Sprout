@@ -19,6 +19,7 @@ export const gardensApi = {
     gardenId: string,
     input: Partial<CreateGardenInput> & { image_path?: string | null }
   ) => api.patch<Garden>(`/api/gardens/${gardenId}`, input),
+  remove: (gardenId: string) => api.delete<void>(`/api/gardens/${gardenId}`),
   setObstacles: (gardenId: string, obstacles: GardenObstacle[]) =>
     api.post<{ obstacles: GardenObstacle[] }>(
       `/api/gardens/${gardenId}/obstacles`,
