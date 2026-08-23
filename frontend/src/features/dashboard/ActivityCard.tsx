@@ -38,7 +38,7 @@ export function ActivityCard() {
 
       <button
         type="button"
-        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-sprout-700 transition hover:gap-1.5 hover:text-sprout-800"
+        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-sprout-700 transition-[gap,color] duration-150 hover:gap-1.5 hover:text-sprout-800 active:opacity-70"
       >
         View all activity
         <ArrowRightIcon className="h-3.5 w-3.5" />

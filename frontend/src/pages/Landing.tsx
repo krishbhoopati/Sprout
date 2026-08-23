@@ -9,7 +9,7 @@ export function Landing() {
         <nav className="flex items-center gap-5 text-sm">
           <Link
             to="/login"
-            className="font-medium text-slate-700 transition hover:text-slate-900"
+            className="font-medium text-slate-700 transition-[color,opacity] duration-150 hover:text-slate-900 active:opacity-60"
           >
             Log in
           </Link>

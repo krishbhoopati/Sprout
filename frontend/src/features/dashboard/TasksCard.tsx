@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { ArrowRightIcon } from "./icons";
 
 interface Task {
@@ -24,11 +25,20 @@ export function TasksCard() {
     <div className="card">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900">Upcoming tasks</h2>
-        {remaining > 0 && (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sprout-600 px-1.5 text-xs font-semibold text-white">
-            {remaining}
-          </span>
-        )}
+        <AnimatePresence>
+          {remaining > 0 && (
+            <motion.span
+              key="remaining-badge"
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.6 }}
+              transition={{ type: "spring", damping: 1, duration: 0.25 }}
+              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sprout-600 px-1.5 text-xs font-semibold text-white"
+            >
+              {remaining}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       <ul className="mt-3 divide-y divide-slate-100">
@@ -44,7 +54,7 @@ export function TasksCard() {
                 className="h-4 w-4 shrink-0 rounded border-slate-300 text-sprout-600 focus:ring-sprout-400"
               />
               <span
-                className={`truncate text-sm ${
+                className={`truncate text-sm transition-colors duration-200 ${
                   done[task.id] ? "text-slate-400 line-through" : "text-slate-700"
                 }`}
               >
@@ -58,7 +68,7 @@ export function TasksCard() {
 
       <button
         type="button"
-        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-sprout-700 transition hover:gap-1.5 hover:text-sprout-800"
+        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-sprout-700 transition-[gap,color] duration-150 hover:gap-1.5 hover:text-sprout-800 active:opacity-70"
       >
         View all tasks
         <ArrowRightIcon className="h-3.5 w-3.5" />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { AppHeader } from "@/components/AppHeader";
 import { ActivityCard } from "@/features/dashboard/ActivityCard";
 import { TasksCard } from "@/features/dashboard/TasksCard";
@@ -20,6 +21,8 @@ import {
 } from "@/features/dashboard/icons";
 import { gardensApi } from "@/features/gardens/api";
 import type { Garden } from "@/types";
+
+const MENU_SPRING = { type: "spring" as const, damping: 1, duration: 0.22 };
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -94,7 +97,7 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className="flex items-center gap-3 rounded-xl p-3 transition hover:bg-slate-50"
+      className="flex items-center gap-3 rounded-xl p-3 transition-[background-color,transform] duration-150 hover:bg-slate-50 active:scale-[0.98] active:duration-75"
     >
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sprout-50 text-sprout-700">
         <div className="h-4 w-4">{icon}</div>
@@ -258,7 +261,7 @@ export function Dashboard() {
                       <Link
                         key={g.id}
                         to={`/gardens/${g.id}/crops`}
-                        className="block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-sprout-200 hover:shadow-md"
+                        className="block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-sprout-200 hover:shadow-md active:translate-y-0 active:scale-[0.99] active:duration-75"
                       >
                         <img
                           src={gardenImage(g, i)}
@@ -278,7 +281,7 @@ export function Dashboard() {
                               <div className="relative">
                                 <button
                                   type="button"
-                                  className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                  className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition-[background-color,color,transform] duration-150 hover:bg-slate-100 hover:text-slate-600 active:scale-90"
                                   aria-label="Garden options"
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -295,33 +298,57 @@ export function Dashboard() {
                                 >
                                   <KebabIcon className="h-4 w-4" />
                                 </button>
-                                {openMenuId === g.id && (
-                                  <div
-                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-                                    onClick={(e) => e.preventDefault()}
-                                  >
-                                    <button
-                                      type="button"
-                                      className={
-                                        confirmingId === g.id
-                                          ? "block w-full px-3.5 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
-                                          : "block w-full px-3.5 py-2 text-left text-sm text-slate-600 hover:bg-slate-50"
-                                      }
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleDelete(g.id);
-                                      }}
-                                      disabled={deletingId === g.id}
+                                <AnimatePresence>
+                                  {openMenuId === g.id && (
+                                    <motion.div
+                                      initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                                      exit={{ opacity: 0, scale: 0.95, y: -2 }}
+                                      transition={MENU_SPRING}
+                                      style={{ transformOrigin: "top right" }}
+                                      className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                                      onClick={(e) => e.preventDefault()}
                                     >
-                                      {deletingId === g.id
-                                        ? "Deleting…"
-                                        : confirmingId === g.id
-                                          ? "Really delete?"
-                                          : "Delete garden"}
-                                    </button>
-                                  </div>
-                                )}
+                                      <button
+                                        type="button"
+                                        className={
+                                          confirmingId === g.id
+                                            ? "block w-full overflow-hidden px-3.5 py-2 text-left text-sm font-semibold text-red-600 transition-colors duration-100 hover:bg-red-50"
+                                            : "block w-full overflow-hidden px-3.5 py-2 text-left text-sm text-slate-600 transition-colors duration-100 hover:bg-slate-50"
+                                        }
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleDelete(g.id);
+                                        }}
+                                        disabled={deletingId === g.id}
+                                      >
+                                        <AnimatePresence mode="wait" initial={false}>
+                                          <motion.span
+                                            key={
+                                              deletingId === g.id
+                                                ? "deleting"
+                                                : confirmingId === g.id
+                                                  ? "confirm"
+                                                  : "idle"
+                                            }
+                                            initial={{ opacity: 0, y: 4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -4 }}
+                                            transition={{ duration: 0.12 }}
+                                            className="block"
+                                          >
+                                            {deletingId === g.id
+                                              ? "Deleting…"
+                                              : confirmingId === g.id
+                                                ? "Really delete?"
+                                                : "Delete garden"}
+                                          </motion.span>
+                                        </AnimatePresence>
+                                      </button>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
                               </div>
                             </div>
                           </div>
